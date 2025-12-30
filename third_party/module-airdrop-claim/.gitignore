@@ -1,9 +1,0 @@
-# Compiler files
-cache/
-out/
-broadcast
-
-# Dotenv file
-.env
-node_modules
-

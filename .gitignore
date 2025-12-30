@@ -1,0 +1,8 @@
+# dependencies/build
+frontend/node_modules/
+frontend/.next/
+contracts/lib/
+contracts/out/
+contracts/cache/
+zk/build/
+.DS_Store
