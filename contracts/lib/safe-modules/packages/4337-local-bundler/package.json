@@ -1,0 +1,28 @@
+{
+  "name": "@safe-global/safe-4337-local-bundler",
+  "version": "0.0.0",
+  "private": true,
+  "license": "LGPL-3.0-only",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "bin": {
+    "4337-local-bundler-test": "dist/src/bin/test.js"
+  },
+  "scripts": {
+    "build": "rimraf dist && tsc && cp -r docker docker-compose.yaml dist && chmod +x dist/src/bin/*.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prepare": "pnpm run build"
+  },
+  "dependencies": {
+    "@account-abstraction/contracts": "0.7.0",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@safe-global/safe-4337-provider": "workspace:^0.0.0",
+    "@safe-global/safe-contracts": "1.4.1-2",
+    "ethers": "^6.13.4",
+    "hardhat": "^2.22.17",
+    "hardhat-deploy": "^0.12.4",
+    "node-fetch": "^3.3.2",
+    "typescript": "^5.7.2"
+  }
+}

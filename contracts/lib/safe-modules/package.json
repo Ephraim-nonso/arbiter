@@ -1,0 +1,52 @@
+{
+  "name": "@safe-global/safe-modules",
+  "version": "1.0.0",
+  "description": "A monorepo for Safe modules",
+  "private": true,
+  "main": "dist/index.js",
+  "workspaces": [
+    "packages/*",
+    "modules/*",
+    "examples/*"
+  ],
+  "scripts": {
+    "fmt:global": "prettier --write .",
+    "fmt:global-check": "prettier --check .",
+    "lint:monorepo": "sherif -i @openzeppelin/contracts -i solc -r root-package-manager-field"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/safe-global/safe-modules.git"
+  },
+  "author": "@safe-global",
+  "license": "LGPL-3.0-only",
+  "bugs": {
+    "url": "https://github.com/safe-global/safe-modules/issues"
+  },
+  "homepage": "https://github.com/safe-global/safe-modules#readme",
+  "keywords": [
+    "Ethereum",
+    "Wallet",
+    "Safe"
+  ],
+  "engines": {
+    "node": "^22",
+    "pnpm": "^9"
+  },
+  "devDependencies": {
+    "@safe-global/safe-singleton-factory": "^1.0.36",
+    "@typescript-eslint/eslint-plugin": "^7.12.0",
+    "@typescript-eslint/parser": "^7.12.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-no-only-tests": "^3.3.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "prettier": "^3.4.2",
+    "prettier-plugin-solidity": "^1.4.1",
+    "rimraf": "^6.0.1",
+    "sherif": "^1.1.1"
+  }
+}
