@@ -46,7 +46,11 @@ export function ConnectWalletButton({
 
   return (
     <div className="relative">
-      <button type="button" className={[btnClass, className ?? ""].join(" ")} onClick={onClick}>
+      <button
+        type="button"
+        className={[btnClass, className ?? ""].join(" ")}
+        onClick={onClick}
+      >
         {isPending ? "Connecting…" : label}
       </button>
 
@@ -66,7 +70,9 @@ export function ConnectWalletButton({
           {!isConnected ? (
             <div className="mt-2 space-y-2">
               {connectors
-                .filter((c) => (isWalletConnectEnabled ? true : c.id !== "walletConnect"))
+                .filter((c) =>
+                  isWalletConnectEnabled ? true : c.id !== "walletConnect"
+                )
                 .map((c) => (
                   <button
                     key={c.uid}
@@ -78,7 +84,9 @@ export function ConnectWalletButton({
                     }}
                   >
                     <span>{c.name}</span>
-                    <span className="text-xs text-black/50 dark:text-white/50">Connect</span>
+                    <span className="text-xs text-black/50 dark:text-white/50">
+                      Connect
+                    </span>
                   </button>
                 ))}
               {error ? (
@@ -88,7 +96,8 @@ export function ConnectWalletButton({
               ) : null}
               {!isWalletConnectEnabled ? (
                 <div className="px-1 pt-1 text-[11px] leading-4 text-black/50 dark:text-white/50">
-                  WalletConnect is disabled. Set <code>NEXT_PUBLIC_WC_PROJECT_ID</code> to enable it.
+                  WalletConnect is disabled. Set{" "}
+                  <code>NEXT_PUBLIC_WC_PROJECT_ID</code> to enable it.
                 </div>
               ) : null}
             </div>
@@ -96,15 +105,7 @@ export function ConnectWalletButton({
             <div className="mt-2 space-y-2">
               <div className="rounded-xl border border-black/10 px-3 py-2 text-xs text-black/70 dark:border-white/15 dark:text-white/70">
                 <div className="font-semibold">Connected</div>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="shrink-0 text-black/60 dark:text-white/60">Address:</span>
-                  <span
-                    className="min-w-0 flex-1 truncate font-mono"
-                    title={address}
-                  >
-                    {shortAddr(address)}
-                  </span>
-                </div>
+                <div className="mt-1">{shortAddr(address)}</div>
                 <div className="mt-1">Chain: {chainId}</div>
               </div>
               <button
@@ -124,5 +125,3 @@ export function ConnectWalletButton({
     </div>
   );
 }
-
-

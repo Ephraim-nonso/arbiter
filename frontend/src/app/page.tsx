@@ -4,6 +4,7 @@ import { MantleIcon } from "@/components/MantleIcon";
 import Image from "next/image";
 import { ProtocolApr } from "@/components/ProtocolAprs";
 import { ConnectWalletButton } from "@/components/ConnectWalletButton";
+import { HomeHeroCta } from "@/components/HomeHeroCta";
 
 export default function Home() {
   return (
@@ -58,7 +59,9 @@ export default function Home() {
               shows the agent stayed within your policy.
             </p>
             <div className="mt-7 flex items-center gap-3">
-              <ConnectWalletButton variant="primary" className="h-11 px-5" />
+              <div>
+                <HomeHeroCta />
+              </div>
               <button
                 type="button"
                 className="inline-flex h-11 cursor-pointer items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-black transition hover:bg-black/5 dark:border-white/15 dark:bg-black dark:text-white dark:hover:bg-white/10"
