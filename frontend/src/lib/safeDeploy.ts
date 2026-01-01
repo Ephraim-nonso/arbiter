@@ -5,11 +5,14 @@ import { createSmartAccountClient } from "permissionless";
 import { toSafeSmartAccount } from "permissionless/accounts";
 import { mantle } from "@/lib/chains";
 
-function requireEnv(name: string): string {
-  const v = process.env[name];
+function requireBundlerUrl(): string {
+  // IMPORTANT: This file is used by client components.
+  // Next.js only inlines env vars when accessed statically (process.env.NEXT_PUBLIC_*).
+  // Dynamic access (process.env[name]) will be undefined in the browser.
+  const v = process.env.NEXT_PUBLIC_BUNDLER_RPC_URL;
   if (!v) {
     throw new Error(
-      `${name} is not set. Add it to your .env (see env.example) to deploy a Safe via ERC-4337.`
+      "NEXT_PUBLIC_BUNDLER_RPC_URL is not set. Add it to frontend/.env (see env.example) and restart `npm run dev`."
     );
   }
   return v;
@@ -32,7 +35,7 @@ export async function deploySafe4337({
   walletClient: WalletClient;
   saltNonce?: bigint;
 }): Promise<{ safeAddress: Address; userOpHash: `0x${string}` }> {
-  const bundlerUrl = requireEnv("NEXT_PUBLIC_BUNDLER_RPC_URL");
+  const bundlerUrl = requireBundlerUrl();
 
   const publicClient = createPublicClient({
     chain: mantle,
@@ -71,5 +74,3 @@ export async function deploySafe4337({
 
   return { safeAddress, userOpHash };
 }
-
-

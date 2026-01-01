@@ -5,7 +5,13 @@ import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 
 type AgentType = "conservative" | "balanced" | "aggressive";
-type Step = "creating" | "created" | "deposit" | "chooseAgent" | "rules" | "activate";
+type Step =
+  | "creating"
+  | "created"
+  | "deposit"
+  | "chooseAgent"
+  | "rules"
+  | "activate";
 
 type ProtocolKey = "ondo" | "agni" | "stargate" | "mantle-rewards" | "init";
 type StyleKey = "safe" | "balanced" | "maxYield" | "custom";
@@ -160,15 +166,15 @@ export function DeployVaultModal({
   const [activity, setActivity] = useState<ActivityKey>("normal");
   const [protection, setProtection] = useState<ProtectionKey>("standard");
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [customVenues, setCustomVenues] = useState<Record<ProtocolKey, boolean>>(
-    {
-      ondo: true,
-      agni: false,
-      stargate: false,
-      "mantle-rewards": true,
-      init: true,
-    }
-  );
+  const [customVenues, setCustomVenues] = useState<
+    Record<ProtocolKey, boolean>
+  >({
+    ondo: true,
+    agni: false,
+    stargate: false,
+    "mantle-rewards": true,
+    init: true,
+  });
 
   const effectiveVenues: ProtocolKey[] = useMemo(() => {
     if (style === "custom") {
@@ -201,14 +207,17 @@ export function DeployVaultModal({
       try {
         setBusy(true);
         const maybeAddr =
-          typeof onDeployVault === "function" ? await onDeployVault() : onDeployVault;
+          typeof onDeployVault === "function"
+            ? await onDeployVault()
+            : onDeployVault;
         if (typeof maybeAddr === "string") setDeployedSafe(maybeAddr);
         if (!onDeployVault) await sleep(1200);
         if (cancelled) return;
         setStep("created");
       } catch (e) {
         if (cancelled) return;
-        const msg = e instanceof Error ? e.message : "Failed to deploy account.";
+        const msg =
+          e instanceof Error ? e.message : "Failed to deploy account.";
         setDeployError(msg);
       } finally {
         if (!cancelled) setBusy(false);
@@ -239,8 +248,8 @@ export function DeployVaultModal({
             </div>
           </div>
           <div className="text-sm leading-6 text-black/60 dark:text-white/60">
-            This will deploy your Safe-based smart account + vault wiring. You can
-            close this modal and retry if it takes too long.
+            This will deploy your Safe-based smart account + vault wiring. You
+            can close this modal and retry if it takes too long.
           </div>
           {deployError ? (
             <div className="space-y-3">
@@ -250,7 +259,8 @@ export function DeployVaultModal({
                   {deployError}
                 </div>
                 <div className="mt-2 text-[11px] text-black/50 dark:text-white/50">
-                  Tip: ensure `NEXT_PUBLIC_BUNDLER_RPC_URL` is set in your frontend env.
+                  Tip: ensure `NEXT_PUBLIC_BUNDLER_RPC_URL` is set in your
+                  frontend env.
                 </div>
               </div>
               <button
@@ -494,7 +504,13 @@ export function DeployVaultModal({
                     desc: "Highest yield, more volatility",
                   },
                   ...(style === "custom"
-                    ? [{ key: "custom", label: "Custom", desc: "Custom venue set" }]
+                    ? [
+                        {
+                          key: "custom",
+                          label: "Custom",
+                          desc: "Custom venue set",
+                        },
+                      ]
                     : []),
                 ] as Array<{ key: StyleKey; label: string; desc: string }>
               ).map((o) => {
@@ -620,7 +636,9 @@ export function DeployVaultModal({
               onClick={() => setAdvancedOpen((v) => !v)}
             >
               <div>
-                <div className="text-sm font-semibold">Advanced: pick venues</div>
+                <div className="text-sm font-semibold">
+                  Advanced: pick venues
+                </div>
                 <div className="mt-0.5 text-xs text-black/50 dark:text-white/50">
                   Optional protocol checklist
                 </div>
@@ -643,7 +661,10 @@ export function DeployVaultModal({
                       checked={!!customVenues[p.key]}
                       onChange={(e) => {
                         const checked = e.target.checked;
-                        setCustomVenues((prev) => ({ ...prev, [p.key]: checked }));
+                        setCustomVenues((prev) => ({
+                          ...prev,
+                          [p.key]: checked,
+                        }));
                         setStyle("custom");
                       }}
                     />
@@ -737,5 +758,3 @@ export function DeployVaultModal({
     </Modal>
   );
 }
-
-
