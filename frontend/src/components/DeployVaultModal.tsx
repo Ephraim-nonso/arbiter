@@ -5,7 +5,7 @@ import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 
 type AgentType = "conservative" | "balanced" | "aggressive";
-type Step = "creating" | "created" | "chooseAgent" | "rules";
+type Step = "creating" | "created" | "deposit" | "chooseAgent" | "rules" | "activate";
 
 type ProtocolKey = "ondo" | "agni" | "stargate" | "mantle-rewards" | "init";
 type StyleKey = "safe" | "balanced" | "maxYield" | "custom";
@@ -78,6 +78,11 @@ function sleep(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
+function shortAddr(a: string) {
+  if (!a.startsWith("0x") || a.length < 10) return a;
+  return `${a.slice(0, 6)}…${a.slice(-4)}`;
+}
+
 function Segmented({
   label,
   value,
@@ -130,7 +135,7 @@ export function DeployVaultModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onDeployVault?: () => Promise<void> | void;
+  onDeployVault?: () => Promise<string | void> | string | void;
   onSelectAgent?: (agent: AgentType) => void;
   onSaveRules?: (rules: {
     style: StyleKey;
@@ -144,6 +149,9 @@ export function DeployVaultModal({
   const [step, setStep] = useState<Step>("creating");
   const [selectedAgent, setSelectedAgent] = useState<AgentType>("conservative");
   const [busy, setBusy] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [deployedSafe, setDeployedSafe] = useState<string | null>(null);
+  const [deployError, setDeployError] = useState<string | null>(null);
 
   // rules step state
   const [style, setStyle] = useState<StyleKey>("balanced");
@@ -172,6 +180,7 @@ export function DeployVaultModal({
   const title = useMemo(() => {
     if (step === "creating") return "Deploy vault";
     if (step === "created") return "Vault created";
+    if (step === "deposit") return "Fund your Agent";
     if (step === "chooseAgent") return "Set your agent";
     return "Set your agent rules";
   }, [step]);
@@ -183,19 +192,24 @@ export function DeployVaultModal({
     setSelectedAgent("conservative");
     setBusy(false);
     setAdvancedOpen(false);
+    setDepositAmount("");
+    setDeployedSafe(null);
+    setDeployError(null);
 
     let cancelled = false;
     (async () => {
       try {
         setBusy(true);
-        if (onDeployVault) {
-          await onDeployVault();
-        } else {
-          // placeholder “deployment”
-          await sleep(1200);
-        }
+        const maybeAddr =
+          typeof onDeployVault === "function" ? await onDeployVault() : onDeployVault;
+        if (typeof maybeAddr === "string") setDeployedSafe(maybeAddr);
+        if (!onDeployVault) await sleep(1200);
         if (cancelled) return;
         setStep("created");
+      } catch (e) {
+        if (cancelled) return;
+        const msg = e instanceof Error ? e.message : "Failed to deploy account.";
+        setDeployError(msg);
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -228,9 +242,33 @@ export function DeployVaultModal({
             This will deploy your Safe-based smart account + vault wiring. You can
             close this modal and retry if it takes too long.
           </div>
-          <div className="text-xs text-black/40 dark:text-white/40">
-            {busy ? "Working…" : " "}
-          </div>
+          {deployError ? (
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-black/80 dark:text-white/80">
+                <div className="font-semibold">Deployment failed</div>
+                <div className="mt-1 text-xs text-black/60 dark:text-white/60">
+                  {deployError}
+                </div>
+                <div className="mt-2 text-[11px] text-black/50 dark:text-white/50">
+                  Tip: ensure `NEXT_PUBLIC_BUNDLER_RPC_URL` is set in your frontend env.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-full bg-lime-400 px-5 text-sm font-semibold text-black shadow-sm transition hover:bg-lime-300"
+                onClick={() => {
+                  // simplest retry: close/reopen
+                  onClose();
+                }}
+              >
+                Close and retry
+              </button>
+            </div>
+          ) : (
+            <div className="text-xs text-black/40 dark:text-white/40">
+              {busy ? "Working…" : " "}
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -239,17 +277,125 @@ export function DeployVaultModal({
           <div className="rounded-2xl border border-lime-400/30 bg-lime-400/10 px-4 py-3 text-sm text-black/80 dark:border-lime-400/20 dark:text-white/80">
             <div className="font-semibold">Vault created successfully.</div>
             <div className="mt-1 text-sm text-black/60 dark:text-white/60">
-              Next, pick an agent profile to guide the AI’s behavior.
+              Next, deposit USDC to fund the agent.
             </div>
+            {deployedSafe ? (
+              <div className="mt-2 text-xs text-black/60 dark:text-white/60">
+                Safe:{" "}
+                <span className="font-mono text-black/80 dark:text-white/80">
+                  {shortAddr(deployedSafe)}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           <button
             type="button"
             className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-full bg-lime-400 px-5 text-sm font-semibold text-black shadow-sm transition hover:bg-lime-300"
-            onClick={() => setStep("chooseAgent")}
+            onClick={() => setStep("deposit")}
           >
-            Proceed to set agent
+            Proceed to deposit
           </button>
+        </div>
+      ) : null}
+
+      {step === "deposit" ? (
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-black/10 bg-white p-4 dark:border-white/15 dark:bg-black">
+            <div className="text-lg font-semibold text-black/90 dark:text-white/90">
+              Fund your Agent
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <div className="text-xs text-black/60 dark:text-white/60">
+                From network
+              </div>
+
+              <button
+                type="button"
+                className="flex w-full cursor-pointer items-center justify-between rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-black/80 shadow-sm dark:border-white/15 dark:bg-black dark:text-white/80"
+                onClick={() => {}}
+                aria-disabled="true"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-xs font-bold text-black dark:border-white/15 dark:bg-black dark:text-white">
+                    M
+                  </div>
+                  <div>Mantle</div>
+                </div>
+                <svg
+                  className="h-5 w-5 text-black/40 dark:text-white/40"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              <div className="flex items-center justify-between text-xs text-black/60 dark:text-white/60">
+                <div>Using</div>
+                <div>Amount</div>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-3 dark:border-white/15 dark:bg-black">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-black/10 bg-white text-xs font-bold text-black dark:border-white/15 dark:bg-black dark:text-white">
+                    $
+                  </div>
+                  <div className="text-sm font-semibold text-black/80 dark:text-white/80">
+                    USDC
+                  </div>
+                </div>
+
+                <div className="flex-1" />
+
+                <input
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="w-28 bg-transparent text-right text-sm font-semibold text-black/90 outline-none placeholder:text-black/30 dark:text-white/90 dark:placeholder:text-white/30"
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-black/50 dark:text-white/50">
+                <div>
+                  Min. deposit: <span className="font-semibold">$10</span>{" "}
+                  <span className="text-black/35 dark:text-white/35">
+                    (≈10 USDC)
+                  </span>
+                </div>
+                <div>
+                  Balance:{" "}
+                  <span className="font-semibold text-black/70 dark:text-white/70">
+                    --
+                  </span>{" "}
+                  USDC
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-lime-400/25 bg-lime-400/10 px-4 py-3 text-xs leading-5 text-black/70 dark:border-lime-400/20 dark:text-white/70">
+                Mantle native token needed for gas fee to deposit. Agent will
+                handle gas fees for trading activities afterwards
+              </div>
+
+              <button
+                type="button"
+                className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-full bg-black/10 px-5 text-sm font-semibold text-black/60 transition hover:bg-black/15 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/15"
+                onClick={() => setStep("chooseAgent")}
+              >
+                Continue to Personalization
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -540,6 +686,7 @@ export function DeployVaultModal({
                     await sleep(600);
                     alert("Rules saved (placeholder).");
                   }
+                  setStep("activate");
                 } finally {
                   setBusy(false);
                 }
@@ -556,6 +703,35 @@ export function DeployVaultModal({
               Back
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {step === "activate" ? (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/70 dark:border-white/15 dark:bg-black dark:text-white/70">
+            <div className="font-semibold text-black/90 dark:text-white/90">
+              Activate Agent
+            </div>
+            <div className="mt-1 text-sm text-black/60 dark:text-white/60">
+              Next: enable the agent + proof-gated execution (placeholder).
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-full bg-lime-400 px-5 text-sm font-semibold text-black shadow-sm transition hover:bg-lime-300"
+            onClick={onClose}
+          >
+            Done
+          </button>
+
+          <button
+            type="button"
+            className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-black transition hover:bg-black/5 dark:border-white/15 dark:bg-black dark:text-white dark:hover:bg-white/10"
+            onClick={() => setStep("rules")}
+          >
+            Back
+          </button>
         </div>
       ) : null}
     </Modal>

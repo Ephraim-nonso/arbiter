@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import {IVerifier} from "../interfaces/IVerifier.sol";
 
-/// @notice Adapter that lets the Vault use a snarkjs-exported Groth16 verifier.
+/// @notice Adapter that lets the system use a snarkjs-exported Groth16 verifier via `IVerifier`.
 /// @dev Proof encoding expected by `verify`:
 ///      proofBytes = abi.encode(uint256[2] a, uint256[2][2] b, uint256[2] c)
 contract Groth16VerifierAdapter is IVerifier {

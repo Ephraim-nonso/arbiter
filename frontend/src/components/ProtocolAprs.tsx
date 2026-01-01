@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 type AprResp = {
   chain: string;
   token: string;
-  data: Record<string, { apr?: number; project?: string; symbol?: string; tvlUsd?: number }>;
+  data: Record<
+    string,
+    { apr?: number; project?: string; symbol?: string; tvlUsd?: number }
+  >;
 };
 
 function formatApr(apr?: number) {
@@ -47,6 +50,3 @@ export function ProtocolApr({ protocolKey }: { protocolKey: string }) {
   const apr = data?.data?.[protocolKey]?.apr;
   return <>{formatApr(apr)}</>;
 }
-
-
-

@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, useSwitchChain } from "wagmi";
+import { useAccount, useSwitchChain, useWalletClient } from "wagmi";
 import { mantle } from "@/lib/chains";
 import { ConnectWalletButton } from "@/components/ConnectWalletButton";
 import { DeployVaultModal } from "@/components/DeployVaultModal";
+import { deploySafe4337 } from "@/lib/safeDeploy";
 
 export function HomeHeroCta() {
   const { isConnected, chainId } = useAccount();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const { data: walletClient } = useWalletClient();
 
   const mantleMismatch = isConnected && chainId !== mantle.id;
   const [deployOpen, setDeployOpen] = useState(false);
@@ -42,6 +44,11 @@ export function HomeHeroCta() {
       <DeployVaultModal
         open={deployOpen}
         onClose={() => setDeployOpen(false)}
+        onDeployVault={async () => {
+          if (!walletClient) throw new Error("Wallet not ready. Try again.");
+          const { safeAddress } = await deploySafe4337({ walletClient });
+          return safeAddress;
+        }}
         onSelectAgent={(agent) => {
           // placeholder: later we persist this to a vault policy/agent config
           alert(`Agent selected: ${agent}`);
