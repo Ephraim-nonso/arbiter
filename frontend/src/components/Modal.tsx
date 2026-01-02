@@ -33,8 +33,8 @@ export function Modal({
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-md rounded-3xl border border-black/10 bg-white p-5 shadow-xl dark:border-white/15 dark:bg-black">
-        <div className="flex items-center justify-between gap-4">
+      <div className="relative flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-black/10 bg-white p-5 shadow-xl dark:border-white/15 dark:bg-black">
+        <div className="flex shrink-0 items-center justify-between gap-4">
           <div className="min-w-0">
             {title ? (
               <div className="truncate text-sm font-semibold text-black/90 dark:text-white/90">
@@ -51,7 +51,8 @@ export function Modal({
           </button>
         </div>
 
-        <div className="mt-4">{children}</div>
+        {/* Prevent modal content from overflowing the viewport; scroll body instead. */}
+        <div className="mt-4 max-h-[75vh] overflow-y-auto pr-1">{children}</div>
       </div>
     </div>
   );

@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# local MVP data (safe address registry)
+.data/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

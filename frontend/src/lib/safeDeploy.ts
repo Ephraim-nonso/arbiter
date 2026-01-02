@@ -4,7 +4,34 @@ import type { WalletClient } from "viem";
 import { createSmartAccountClient } from "permissionless";
 import { toSafeSmartAccount } from "permissionless/accounts";
 import { createPimlicoClient } from "permissionless/clients/pimlico";
-import { mantle } from "@/lib/chains";
+import { targetChain } from "@/lib/wagmi";
+
+function validatePimlicoUrl(url: string, varName: string) {
+  try {
+    const u = new URL(url);
+    if (!u.hostname.includes("api.pimlico.io")) return;
+
+    // Common Pimlico shape: /v2/<chain>/rpc?apikey=...
+    const parts = u.pathname.split("/").filter(Boolean);
+    if (parts.length >= 3 && parts[0] === "v2" && parts[2] === "rpc") {
+      const chainSeg = parts[1] ?? "";
+      // If user pasted a numeric chain id (e.g. /v2/137/rpc) validate it matches the target chain.
+      if (/^\d+$/.test(chainSeg)) {
+        const n = Number(chainSeg);
+        if (Number.isFinite(n) && n === targetChain.id) return;
+        throw new Error(
+          `${varName} looks like a Pimlico URL but uses a numeric chain segment (/v2/${chainSeg}/rpc). ` +
+            `Your app is currently targeting chainId ${targetChain.id} (${targetChain.name}). ` +
+            `Use the Pimlico endpoint for the same chain (or switch the app network toggle).`
+        );
+      }
+    }
+  } catch (e) {
+    // Re-throw as a clean message for the UI.
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(msg);
+  }
+}
 
 function requireBundlerUrl(): string {
   // IMPORTANT: This file is used by client components.
@@ -16,17 +43,18 @@ function requireBundlerUrl(): string {
       "NEXT_PUBLIC_BUNDLER_RPC_URL is not set. Add it to frontend/.env (see env.example) and restart `npm run dev`."
     );
   }
+  validatePimlicoUrl(v, "NEXT_PUBLIC_BUNDLER_RPC_URL");
   return v;
 }
 
 function requirePaymasterUrl(): string {
-  // Same inlining rule as above; keep static env access.
   const v = process.env.NEXT_PUBLIC_PAYMASTER_RPC_URL;
   if (!v) {
     throw new Error(
-      "NEXT_PUBLIC_PAYMASTER_RPC_URL is not set. Option 3 (gas sponsorship) requires a paymaster endpoint."
+      "NEXT_PUBLIC_PAYMASTER_RPC_URL is not set. Paymaster sponsorship is enabled, so this is required."
     );
   }
+  validatePimlicoUrl(v, "NEXT_PUBLIC_PAYMASTER_RPC_URL");
   return v;
 }
 
@@ -51,8 +79,8 @@ export async function deploySafe4337({
   const paymasterUrl = requirePaymasterUrl();
 
   const publicClient = createPublicClient({
-    chain: mantle,
-    transport: http(mantle.rpcUrls.default.http[0]),
+    chain: targetChain,
+    transport: http(targetChain.rpcUrls.default.http[0]),
   });
 
   const ownerAddress = walletClient.account?.address as Address | undefined;
@@ -71,42 +99,89 @@ export async function deploySafe4337({
 
   const safeAddress = await safeAccount.getAddress();
 
-  // Paymaster client (Pimlico-compatible) used for sponsorship + gas price estimation.
+  // Pimlico-compatible paymaster client (sponsorship + gas price estimation).
   const paymasterClient = createPimlicoClient({
-    chain: mantle,
+    chain: targetChain,
     transport: http(paymasterUrl),
     entryPoint: { address: entryPoint07Address, version: "0.7" },
   });
 
   const smartAccountClient = createSmartAccountClient({
     account: safeAccount,
-    chain: mantle,
+    chain: targetChain,
     bundlerTransport: http(bundlerUrl),
-    // Option 3: sponsor gas via paymaster.
     paymaster: {
-      // Sponsor the UserOperation and attach paymaster fields.
-      getPaymasterData: async (params: any) => {
-        const { context, chainId: _chainId, entryPointAddress: _ep, ...userOperation } =
-          params ?? {};
-        return (paymasterClient as any).sponsorUserOperation({
-          userOperation,
-          paymasterContext: context,
-        });
+      // Prefer sponsorship; fallback to standard paymaster methods if sponsor isn't enabled.
+      getPaymasterData: async (params) => {
+        try {
+          // viem passes UserOperation fields at top-level plus chainId/entryPointAddress/context.
+          const {
+            context,
+            chainId: _c,
+            entryPointAddress: _e,
+            ...userOperation
+          } = params as unknown as { [k: string]: unknown };
+          void _c;
+          void _e;
+          type SponsorArgs = Parameters<
+            typeof paymasterClient.sponsorUserOperation
+          >[0];
+          return await paymasterClient.sponsorUserOperation({
+            userOperation:
+              userOperation as unknown as SponsorArgs["userOperation"],
+            paymasterContext: context,
+          } satisfies SponsorArgs);
+        } catch (err) {
+          void err;
+          return await paymasterClient.getPaymasterData(
+            params as unknown as Parameters<
+              typeof paymasterClient.getPaymasterData
+            >[0]
+          );
+        }
       },
-      // Use same endpoint for stub data used during estimation.
-      getPaymasterStubData: async (params: any) => {
-        const { context, chainId: _chainId, entryPointAddress: _ep, ...userOperation } =
-          params ?? {};
-        return (paymasterClient as any).sponsorUserOperation({
-          userOperation,
-          paymasterContext: context,
-        });
+      getPaymasterStubData: async (params) => {
+        try {
+          const {
+            context,
+            chainId: _c,
+            entryPointAddress: _e,
+            ...userOperation
+          } = params as unknown as { [k: string]: unknown };
+          void _c;
+          void _e;
+          type SponsorArgs = Parameters<
+            typeof paymasterClient.sponsorUserOperation
+          >[0];
+          return await paymasterClient.sponsorUserOperation({
+            userOperation:
+              userOperation as unknown as SponsorArgs["userOperation"],
+            paymasterContext: context,
+          } satisfies SponsorArgs);
+        } catch (err) {
+          void err;
+          return await paymasterClient.getPaymasterStubData(
+            params as unknown as Parameters<
+              typeof paymasterClient.getPaymasterStubData
+            >[0]
+          );
+        }
       },
     },
     userOperation: {
       estimateFeesPerGas: async () => {
-        const gasPrice = await (paymasterClient as any).getUserOperationGasPrice();
-        return gasPrice.fast;
+        // If supported, use bundler/paymaster gas price oracle (Pimlico).
+        try {
+          const gasPrice = await paymasterClient.getUserOperationGasPrice();
+          return gasPrice.fast;
+        } catch (err) {
+          void err;
+          const fees = await publicClient.estimateFeesPerGas();
+          return {
+            maxFeePerGas: fees.maxFeePerGas ?? fees.gasPrice ?? BigInt(0),
+            maxPriorityFeePerGas: fees.maxPriorityFeePerGas ?? BigInt(0),
+          };
+        }
       },
     },
   });

@@ -1,9 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
-import { mantle } from "@/lib/chains";
+import {
+  useConnection,
+  useConnect,
+  useConnectors,
+  useDisconnect,
+  useSwitchChain,
+} from "wagmi";
 import { isWalletConnectEnabled } from "@/lib/wagmi";
+import { targetChain } from "@/lib/wagmi";
 
 function shortAddr(addr?: string) {
   if (!addr) return "";
@@ -17,14 +23,19 @@ export function ConnectWalletButton({
   className?: string;
   variant?: "primary" | "secondary";
 }) {
-  const { address, chainId, isConnected } = useAccount();
-  const { disconnect } = useDisconnect();
-  const { connect, connectors, isPending, error } = useConnect();
-  const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const { address, chainId, status } = useConnection();
+  const isConnected = status === "connected";
+
+  const connect = useConnect();
+  const connectors = useConnectors();
+
+  const disconnect = useDisconnect();
+  const switchChain = useSwitchChain();
 
   const [open, setOpen] = useState(false);
 
-  const mantleMismatch = isConnected && chainId !== mantle.id;
+  const mantleMismatch = isConnected && chainId !== targetChain.id;
+  // const mantleMismatch = isConnected && chainId !== mantleSepoliaTestnet.id;
 
   const btnClass =
     variant === "primary"
@@ -33,13 +44,16 @@ export function ConnectWalletButton({
 
   const label = useMemo(() => {
     if (!isConnected) return "Connect Wallet";
-    if (mantleMismatch) return isSwitching ? "Switching…" : "Switch to Mantle";
+    if (mantleMismatch)
+      return switchChain.isPending
+        ? "Switching…"
+        : `Switch to ${targetChain.name}`;
     return shortAddr(address);
-  }, [address, isConnected, mantleMismatch, isSwitching]);
+  }, [address, isConnected, mantleMismatch, switchChain.isPending]);
 
   function onClick() {
     if (!isConnected) return setOpen(true);
-    if (mantleMismatch) return switchChain({ chainId: mantle.id });
+    if (mantleMismatch) return switchChain.mutate({ chainId: targetChain.id });
     // connected + correct chain => open menu
     return setOpen(true);
   }
@@ -51,7 +65,7 @@ export function ConnectWalletButton({
         className={[btnClass, className ?? ""].join(" ")}
         onClick={onClick}
       >
-        {isPending ? "Connecting…" : label}
+        {connect.isPending ? "Connecting…" : label}
       </button>
 
       {open ? (
@@ -79,7 +93,7 @@ export function ConnectWalletButton({
                     type="button"
                     className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-medium text-black hover:bg-black/5 dark:border-white/15 dark:bg-black dark:text-white dark:hover:bg-white/10"
                     onClick={() => {
-                      connect({ connector: c });
+                      connect.mutate({ connector: c });
                       setOpen(false);
                     }}
                   >
@@ -89,9 +103,9 @@ export function ConnectWalletButton({
                     </span>
                   </button>
                 ))}
-              {error ? (
+              {connect.error ? (
                 <div className="rounded-xl bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-400">
-                  {error.message}
+                  {connect.error.message}
                 </div>
               ) : null}
               {!isWalletConnectEnabled ? (
@@ -112,7 +126,7 @@ export function ConnectWalletButton({
                 type="button"
                 className="w-full cursor-pointer rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black hover:bg-black/5 dark:border-white/15 dark:bg-black dark:text-white dark:hover:bg-white/10"
                 onClick={() => {
-                  disconnect();
+                  disconnect.mutate();
                   setOpen(false);
                 }}
               >

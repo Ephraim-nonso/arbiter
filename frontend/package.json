@@ -11,9 +11,11 @@
   "dependencies": {
     "@tanstack/react-query": "^5.90.15",
     "@walletconnect/ethereum-provider": "^2.21.10",
+    "chart.js": "^4.5.1",
     "next": "16.1.1",
     "permissionless": "^0.3.2",
     "react": "19.2.3",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.3",
     "viem": "^2.43.3",
     "wagmi": "^3.1.3"

@@ -1,6 +1,7 @@
 import { http, createConfig } from "wagmi";
 import { injected, coinbaseWallet, walletConnect } from "wagmi/connectors";
-import { mantle } from "./chains";
+import { mantle, mantleSepoliaTestnet } from "wagmi/chains";
+import { getTargetChain } from "@/lib/network";
 
 const appName = "Arbiter";
 
@@ -17,13 +18,16 @@ const connectors = [
 ];
 
 export const wagmiConfig = createConfig({
-  chains: [mantle],
+  chains: [mantle, mantleSepoliaTestnet],
   connectors,
   transports: {
-    [mantle.id]: http(),
+    [mantle.id]: http(mantle.rpcUrls.default.http[0]),
+    [mantleSepoliaTestnet.id]: http(
+      mantleSepoliaTestnet.rpcUrls.default.http[0]
+    ),
   },
 });
 
 export const isWalletConnectEnabled = Boolean(wcProjectId);
 
-
+export const targetChain = getTargetChain();
