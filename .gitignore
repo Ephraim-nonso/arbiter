@@ -6,4 +6,5 @@ contracts/out/
 contracts/cache/
 zk/build/
 zk/node_modules
+agent-rs/target
 .DS_Store
