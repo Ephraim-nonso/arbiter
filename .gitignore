@@ -5,4 +5,5 @@ contracts/lib/
 contracts/out/
 contracts/cache/
 zk/build/
+zk/node_modules
 .DS_Store
