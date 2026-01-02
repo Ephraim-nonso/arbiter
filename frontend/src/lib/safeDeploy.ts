@@ -3,6 +3,7 @@ import { entryPoint07Address } from "viem/account-abstraction";
 import type { WalletClient } from "viem";
 import { createSmartAccountClient } from "permissionless";
 import { toSafeSmartAccount } from "permissionless/accounts";
+import { createPimlicoClient } from "permissionless/clients/pimlico";
 import { mantle } from "@/lib/chains";
 
 function requireBundlerUrl(): string {
@@ -13,6 +14,17 @@ function requireBundlerUrl(): string {
   if (!v) {
     throw new Error(
       "NEXT_PUBLIC_BUNDLER_RPC_URL is not set. Add it to frontend/.env (see env.example) and restart `npm run dev`."
+    );
+  }
+  return v;
+}
+
+function requirePaymasterUrl(): string {
+  // Same inlining rule as above; keep static env access.
+  const v = process.env.NEXT_PUBLIC_PAYMASTER_RPC_URL;
+  if (!v) {
+    throw new Error(
+      "NEXT_PUBLIC_PAYMASTER_RPC_URL is not set. Option 3 (gas sponsorship) requires a paymaster endpoint."
     );
   }
   return v;
@@ -36,6 +48,7 @@ export async function deploySafe4337({
   saltNonce?: bigint;
 }): Promise<{ safeAddress: Address; userOpHash: `0x${string}` }> {
   const bundlerUrl = requireBundlerUrl();
+  const paymasterUrl = requirePaymasterUrl();
 
   const publicClient = createPublicClient({
     chain: mantle,
@@ -58,10 +71,44 @@ export async function deploySafe4337({
 
   const safeAddress = await safeAccount.getAddress();
 
+  // Paymaster client (Pimlico-compatible) used for sponsorship + gas price estimation.
+  const paymasterClient = createPimlicoClient({
+    chain: mantle,
+    transport: http(paymasterUrl),
+    entryPoint: { address: entryPoint07Address, version: "0.7" },
+  });
+
   const smartAccountClient = createSmartAccountClient({
     account: safeAccount,
     chain: mantle,
     bundlerTransport: http(bundlerUrl),
+    // Option 3: sponsor gas via paymaster.
+    paymaster: {
+      // Sponsor the UserOperation and attach paymaster fields.
+      getPaymasterData: async (params: any) => {
+        const { context, chainId: _chainId, entryPointAddress: _ep, ...userOperation } =
+          params ?? {};
+        return (paymasterClient as any).sponsorUserOperation({
+          userOperation,
+          paymasterContext: context,
+        });
+      },
+      // Use same endpoint for stub data used during estimation.
+      getPaymasterStubData: async (params: any) => {
+        const { context, chainId: _chainId, entryPointAddress: _ep, ...userOperation } =
+          params ?? {};
+        return (paymasterClient as any).sponsorUserOperation({
+          userOperation,
+          paymasterContext: context,
+        });
+      },
+    },
+    userOperation: {
+      estimateFeesPerGas: async () => {
+        const gasPrice = await (paymasterClient as any).getUserOperationGasPrice();
+        return gasPrice.fast;
+      },
+    },
   });
 
   // Trigger Safe deployment by sending a harmless call. This will deploy the Safe (if needed)

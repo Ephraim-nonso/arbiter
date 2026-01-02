@@ -2,25 +2,21 @@
 
 This folder contains the Groth16 zkSNARK setup for Arbiter.
 
-## Why circom here?
-
-You asked for **Groth16** specifically. Today, the most straightforward + well-supported path to:
-
 - compile a circuit
 - run the trusted setup locally
 - generate proofs
 - **export a Solidity verifier**
 
-…is **circom + snarkjs**.
+**circom + snarkjs**
 
-We still keep the on-chain interface generic (`contracts/src/interfaces/IVerifier.sol`) and use an adapter (`Groth16VerifierAdapter`) so the Vault doesn't care which proving system we use.
+Interface - (`contracts/src/interfaces/IVerifier.sol`) and an adapter (`Groth16VerifierAdapter`).
 
 ## Prereqs
 
-- Node.js 18+ (you have this)
-- `circom` compiler (install once)
+- Node.js 18+
+- `circom` compiler
 
-### Install circom (recommended)
+### Install circom
 
 From the `circom` repo (requires Rust toolchain):
 

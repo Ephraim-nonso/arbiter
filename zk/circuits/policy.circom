@@ -1,6 +1,7 @@
 pragma circom 2.1.8;
 
 include "circomlib/circuits/poseidon.circom";
+include "circomlib/circuits/bitify.circom";
 
 // MVP circuit (protocol vector version, fixed N):
 // - public binds: policyHash, vault, nonce, deadline
@@ -23,24 +24,33 @@ template PolicyCircuit(N) {
     signal input vault;      // public (uint160 address)
     signal input nonce;      // public
     signal input deadline;   // public (0 = none)
-    signal output policyHash; // public
+    signal input policyHash; // public (must match Poseidon(allowBitmap, capsBps))
 
     // Private policy + proposal (kept private; the hash binds it on-chain)
-    signal input allowBitmap;     // private bitset of allowlisted protocols (lowest N bits)
+    signal input allowBitmap;     // public bitset of allowlisted protocols (lowest N bits)
     signal input capsBps[N];      // private per-protocol caps (bps)
     signal input allocations[N];  // private
 
     // constrain allocations
     signal sum;
-    sum <== 0;
 
     // Feasibility: sum of per-protocol caps must allow a full allocation (>= 10000 bps).
     signal sumCaps;
-    sumCaps <== 0;
+
+    // Accumulators (Circom signals can only be assigned once).
+    signal sumAcc[N + 1];
+    signal sumCapsAcc[N + 1];
+    sumAcc[0] <== 0;
+    sumCapsAcc[0] <== 0;
 
     // Decompose allowBitmap into bits for the lowest N protocols.
     component allowBits = Num2Bits(N);
     allowBits.in <== allowBitmap;
+
+    // Range checks / helpers per protocol (declare arrays outside loops).
+    component capBits[N];
+    component dBits[N];
+    signal diff[N];
 
     // Compute policyHash = Poseidon(allowBitmap, capsBps[0..N-1])
     // For N=5 we use Poseidon(6).
@@ -49,34 +59,38 @@ template PolicyCircuit(N) {
     for (var i = 0; i < N; i++) {
         h.inputs[1 + i] <== capsBps[i];
     }
-    policyHash <== h.out;
+    // Bind the provided public policyHash to the private caps + allowBitmap.
+    h.out === policyHash;
 
     for (var i = 0; i < N; i++) {
         // Enforce caps are within a sane range (<= 16383; 10000 fits).
-        component capBits = Num2Bits(14);
-        capBits.in <== capsBps[i];
+        capBits[i] = Num2Bits(14);
+        capBits[i].in <== capsBps[i];
 
         // If protocol i is NOT allowlisted, capsBps[i] must be 0 (so a user can't "hide" caps off-chain)
         capsBps[i] * (1 - allowBits.out[i]) === 0;
 
-        sumCaps <== sumCaps + capsBps[i];
+        sumCapsAcc[i + 1] <== sumCapsAcc[i] + capsBps[i];
 
         // allocations[i] <= capsBps[i]
         // (capsBps[i] - allocations[i]) must be >= 0.
         // We enforce by requiring capsBps[i] - allocations[i] = diff and diff >= 0 by bit-range.
-        signal diff;
-        diff <== capsBps[i] - allocations[i];
+        diff[i] <== capsBps[i] - allocations[i];
 
         // range check diff in 14 bits (enough for <= 16383)
-        component dBits = Num2Bits(14);
-        dBits.in <== diff;
+        dBits[i] = Num2Bits(14);
+        dBits[i].in <== diff[i];
 
         // If protocol i is NOT allowlisted, allocations[i] must be 0:
         // allocations[i] * (1 - allowBits.out[i]) == 0
         allocations[i] * (1 - allowBits.out[i]) === 0;
 
-        sum <== sum + allocations[i];
+        sumAcc[i + 1] <== sumAcc[i] + allocations[i];
     }
+
+    // Finalize sums.
+    sum <== sumAcc[N];
+    sumCaps <== sumCapsAcc[N];
 
     // Enforce sumCaps >= 10000 via range check on (sumCaps - 10000).
     // With N=5, sumCaps max is 5*10000=50000, so diffCaps fits in 16 bits.
@@ -87,19 +101,6 @@ template PolicyCircuit(N) {
 
     // sum == 10000
     sum === 10000;
-}
-
-// Simple Num2Bits implementation (from circom docs pattern).
-template Num2Bits(n) {
-    signal input in;
-    signal output out[n];
-
-    var acc = 0;
-    for (var i = 0; i < n; i++) {
-        out[i] * (out[i] - 1) === 0;
-        acc += out[i] * (1 << i);
-    }
-    acc === in;
 }
 
 // Make allowBitmap public so on-chain can enforce router call target allowlisting

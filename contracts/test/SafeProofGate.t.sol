@@ -7,7 +7,7 @@ import "forge-std/StdJson.sol";
 import {Router} from "../src/Router.sol";
 import {ProofGateSafeModule} from "../src/safe/ProofGateSafeModule.sol";
 
-import {PolicyGroth16Verifier} from "../src/verifiers/PolicyGroth16Verifier.sol";
+import {Groth16Verifier} from "../src/verifiers/PolicyGroth16Verifier.sol";
 import {Groth16VerifierAdapter} from "../src/verifiers/Groth16VerifierAdapter.sol";
 
 import {Safe} from "safe-contracts/Safe.sol";
@@ -28,7 +28,7 @@ contract SafeProofGateTest is Test {
     address internal agent;
 
     Router internal router;
-    PolicyGroth16Verifier internal groth16;
+    Groth16Verifier internal groth16;
     Groth16VerifierAdapter internal verifier;
     ProofGateSafeModule internal proofGate;
 
@@ -53,7 +53,7 @@ contract SafeProofGateTest is Test {
         agent = address(0xB0B);
 
         router = new Router();
-        groth16 = new PolicyGroth16Verifier();
+        groth16 = new Groth16Verifier();
         verifier = new Groth16VerifierAdapter(address(groth16));
         proofGate = new ProofGateSafeModule(address(verifier), address(router));
 

@@ -62,12 +62,6 @@ export default function Home() {
               <div>
                 <HomeHeroCta />
               </div>
-              <button
-                type="button"
-                className="inline-flex h-11 cursor-pointer items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-black transition hover:bg-black/5 dark:border-white/15 dark:bg-black dark:text-white dark:hover:bg-white/10"
-              >
-                View how it works
-              </button>
             </div>
           </section>
 
