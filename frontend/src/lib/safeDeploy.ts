@@ -6,6 +6,12 @@ import { toSafeSmartAccount } from "permissionless/accounts";
 import { createPimlicoClient } from "permissionless/clients/pimlico";
 import { targetChain } from "@/lib/wagmi";
 
+function parseEnvAddress(v: string | undefined, varName: string): Address | null {
+  if (!v) return null;
+  if (v.startsWith("0x") && v.length === 42) return v as Address;
+  throw new Error(`${varName} must be a 0x-prefixed 20-byte address.`);
+}
+
 function validatePimlicoUrl(url: string, varName: string) {
   try {
     const u = new URL(url);
@@ -94,7 +100,20 @@ export async function deploySafe4337({
     owners: [walletClient],
     version: "1.4.1",
     saltNonce,
-    // safeModules: [<ProofGateSafeModule address>],
+    // Enable ProofGateSafeModule during Safe setup if configured.
+    ...(parseEnvAddress(
+      process.env.NEXT_PUBLIC_PROOF_GATE_SAFE_MODULE_ADDRESS,
+      "NEXT_PUBLIC_PROOF_GATE_SAFE_MODULE_ADDRESS"
+    )
+      ? {
+          safeModules: [
+            parseEnvAddress(
+              process.env.NEXT_PUBLIC_PROOF_GATE_SAFE_MODULE_ADDRESS,
+              "NEXT_PUBLIC_PROOF_GATE_SAFE_MODULE_ADDRESS"
+            )!,
+          ],
+        }
+      : {}),
   });
 
   const safeAddress = await safeAccount.getAddress();

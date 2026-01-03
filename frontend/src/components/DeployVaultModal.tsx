@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useWalletClient } from "wagmi";
+import { createPublicClient, http, erc20Abi, type Address } from "viem";
+import { targetChain } from "@/lib/wagmi";
+import {
+  getUsdcAddressForChain,
+  parseUsdcToMicros,
+  formatUsdcFromMicros,
+} from "@/lib/usdc";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 import { FundAgentForm } from "@/components/FundAgentForm";
-import { targetChain } from "@/lib/wagmi";
 
 type AgentType = "conservative" | "balanced" | "aggressive";
 type Step =
@@ -160,6 +167,10 @@ export function DeployVaultModal({
   const [depositAmount, setDepositAmount] = useState("");
   const [deployedSafe, setDeployedSafe] = useState<string | null>(null);
   const [deployError, setDeployError] = useState<string | null>(null);
+  const [depositError, setDepositError] = useState<string | null>(null);
+  const [usdcBalance, setUsdcBalance] = useState<number | null>(null);
+
+  const { data: walletClient } = useWalletClient();
 
   // rules step state
   const [style, setStyle] = useState<StyleKey>("balanced");
@@ -203,6 +214,8 @@ export function DeployVaultModal({
     setDepositAmount("");
     setDeployedSafe(null);
     setDeployError(null);
+    setDepositError(null);
+    setUsdcBalance(null);
 
     let cancelled = false;
     (async () => {
@@ -230,6 +243,38 @@ export function DeployVaultModal({
       cancelled = true;
     };
   }, [open, onDeployVault]);
+
+  async function refreshUsdcBalance(safeAddr: string) {
+    const publicClient = createPublicClient({
+      chain: targetChain,
+      transport: http(targetChain.rpcUrls.default.http[0]),
+    });
+    const usdc = getUsdcAddressForChain(targetChain.id);
+    const bal = await publicClient.readContract({
+      address: usdc,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [safeAddr as Address],
+    });
+    setUsdcBalance(formatUsdcFromMicros(bal));
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    if (step !== "deposit") return;
+    if (!deployedSafe) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await refreshUsdcBalance(deployedSafe);
+      } catch {
+        if (!cancelled) setUsdcBalance(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, step, deployedSafe]);
 
   // Initialize rule preset when user picks the "agent type"
   useEffect(() => {
@@ -294,46 +339,9 @@ export function DeployVaultModal({
             {deployedSafe ? (
               <div className="mt-2 text-xs text-black/60 dark:text-white/60">
                 Safe:{" "}
-                <a
-                  href={`${
-                    targetChain.blockExplorers?.default.url ?? ""
-                  }/address/${deployedSafe}`}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="inline-flex items-center gap-1 font-mono text-black/80 underline underline-offset-4 hover:text-black dark:text-white/80 dark:hover:text-white"
-                  title="View on explorer"
-                >
+                <span className="font-mono text-black/80 dark:text-white/80">
                   {shortAddr(deployedSafe)}
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M14 3h7v7"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M10 14L21 3"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M21 14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </a>
+                </span>
               </div>
             ) : null}
           </div>
@@ -352,9 +360,54 @@ export function DeployVaultModal({
         <FundAgentForm
           depositAmount={depositAmount}
           onChangeDepositAmount={setDepositAmount}
-          primaryLabel="Continue to Personalization"
-          primaryVariant="secondary"
-          onPrimary={() => setStep("chooseAgent")}
+          primaryLabel={busy ? "Depositing…" : "Deposit USDC"}
+          primaryVariant="primary"
+          balanceText={usdcBalance == null ? "--" : usdcBalance.toFixed(2)}
+          disabledPrimary={busy || !deployedSafe}
+          errorText={depositError}
+          onPrimary={async () => {
+            if (!deployedSafe) return;
+            if (!walletClient) {
+              setDepositError("Wallet not ready. Reconnect and try again.");
+              return;
+            }
+            try {
+              setDepositError(null);
+              setBusy(true);
+              const amountMicros = parseUsdcToMicros(depositAmount);
+              const usdc = getUsdcAddressForChain(targetChain.id);
+              const hash = await walletClient.writeContract({
+                address: usdc,
+                abi: erc20Abi,
+                functionName: "transfer",
+                args: [deployedSafe as Address, amountMicros],
+              });
+              const publicClient = createPublicClient({
+                chain: targetChain,
+                transport: http(targetChain.rpcUrls.default.http[0]),
+              });
+              await publicClient.waitForTransactionReceipt({ hash });
+
+              await fetch("/api/deposits", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({
+                  chainId: targetChain.id,
+                  safeAddress: deployedSafe,
+                  amountMicros: amountMicros.toString(),
+                  txHash: hash,
+                }),
+              }).catch(() => {});
+
+              await refreshUsdcBalance(deployedSafe);
+              setStep("chooseAgent");
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : "Deposit failed.";
+              setDepositError(msg);
+            } finally {
+              setBusy(false);
+            }
+          }}
         />
       ) : null}
 

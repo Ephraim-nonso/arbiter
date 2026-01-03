@@ -1,13 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useConnection } from "wagmi";
+import { useConnection, useWalletClient } from "wagmi";
 import { targetChain } from "@/lib/wagmi";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { YieldProjectionChart } from "@/components/YieldProjectionChart";
 import { Modal } from "@/components/Modal";
 import { FundAgentForm } from "@/components/FundAgentForm";
+import { createPublicClient, erc20Abi, http, type Address } from "viem";
+import {
+  formatUsdcFromMicros,
+  getUsdcAddressForChain,
+  parseUsdcToMicros,
+} from "@/lib/usdc";
 
 type ViewTab = "position" | "projection";
 
@@ -24,20 +30,49 @@ export default function VaultPage() {
   const { status, address } = useConnection();
   const isConnected = status === "connected";
   const owner = useMemo(() => (address ? address.toLowerCase() : null), [address]);
+  const { data: walletClient } = useWalletClient();
 
   const [safeAddress, setSafeAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<ViewTab>("position");
   const [addFundsOpen, setAddFundsOpen] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
+  const [depositBusy, setDepositBusy] = useState(false);
+  const [depositError, setDepositError] = useState<string | null>(null);
+  const [usdcBalance, setUsdcBalance] = useState<number | null>(null);
+  const [totalDeposited, setTotalDeposited] = useState<number | null>(null);
 
   // MVP values (replace with on-chain reads once protocol adapters land).
-  const totalBalance = 10.07;
-  const totalDeposited = 10.07;
   const lifetimeEarnings = 0.0;
   const agentApr = 5.62;
   const arbiterRewardsApr = 9.38;
   const netApr = 15.0;
+
+  async function refreshBalances(safe: string) {
+    const publicClient = createPublicClient({
+      chain: targetChain,
+      transport: http(targetChain.rpcUrls.default.http[0]),
+    });
+    const usdc = getUsdcAddressForChain(targetChain.id);
+    const bal = await publicClient.readContract({
+      address: usdc,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [safe as Address],
+    });
+    setUsdcBalance(formatUsdcFromMicros(bal));
+  }
+
+  async function refreshDeposits(safe: string) {
+    const res = await fetch(
+      `/api/deposits?chainId=${encodeURIComponent(String(targetChain.id))}&safeAddress=${encodeURIComponent(
+        safe
+      )}`
+    );
+    const json = (await res.json()) as { totalDepositedMicros?: string };
+    const micros = BigInt(json.totalDepositedMicros ?? "0");
+    setTotalDeposited(formatUsdcFromMicros(micros));
+  }
 
   useEffect(() => {
     if (!isConnected || !owner) return;
@@ -59,6 +94,24 @@ export default function VaultPage() {
       cancelled = true;
     };
   }, [isConnected, owner]);
+
+  useEffect(() => {
+    if (!safeAddress) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await Promise.all([refreshBalances(safeAddress), refreshDeposits(safeAddress)]);
+      } catch {
+        if (!cancelled) {
+          setUsdcBalance(null);
+          setTotalDeposited(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [safeAddress]);
 
   if (!isConnected) {
     return (
@@ -111,6 +164,9 @@ export default function VaultPage() {
       </div>
     );
   }
+
+  const totalBalance = usdcBalance ?? 0;
+  const totalDepositedDisplay = totalDeposited ?? 0;
 
   return (
     <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
@@ -200,7 +256,7 @@ export default function VaultPage() {
                     Total deposited
                   </div>
                   <div className="mt-1 text-sm font-semibold text-black dark:text-white">
-                    {totalDeposited.toFixed(2)} USDC
+                    {totalDepositedDisplay.toFixed(2)} USDC
                   </div>
                 </div>
 
@@ -366,7 +422,7 @@ export default function VaultPage() {
                   Total Deposits
                 </div>
                 <div className="font-semibold text-black dark:text-white">
-                  {totalDeposited.toFixed(2)} USDC
+                  {totalDepositedDisplay.toFixed(2)} USDC
                 </div>
               </div>
               <button
@@ -389,11 +445,52 @@ export default function VaultPage() {
           <FundAgentForm
             depositAmount={depositAmount}
             onChangeDepositAmount={setDepositAmount}
-            primaryLabel="Deposit USDC"
+            primaryLabel={depositBusy ? "Depositing…" : "Deposit USDC"}
             primaryVariant="primary"
-            onPrimary={() => {
-              // TODO(arbiter): wire to USDC transfer/approval into the user's Safe.
-              setAddFundsOpen(false);
+            balanceText={usdcBalance == null ? "--" : usdcBalance.toFixed(2)}
+            disabledPrimary={depositBusy}
+            errorText={depositError}
+            onPrimary={async () => {
+              if (!walletClient) {
+                setDepositError("Wallet not ready. Reconnect and try again.");
+                return;
+              }
+              try {
+                setDepositError(null);
+                setDepositBusy(true);
+                const amountMicros = parseUsdcToMicros(depositAmount);
+                const usdc = getUsdcAddressForChain(targetChain.id);
+                const hash = await walletClient.writeContract({
+                  address: usdc,
+                  abi: erc20Abi,
+                  functionName: "transfer",
+                  args: [safeAddress as Address, amountMicros],
+                });
+                const publicClient = createPublicClient({
+                  chain: targetChain,
+                  transport: http(targetChain.rpcUrls.default.http[0]),
+                });
+                await publicClient.waitForTransactionReceipt({ hash });
+
+                await fetch("/api/deposits", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({
+                    chainId: targetChain.id,
+                    safeAddress,
+                    amountMicros: amountMicros.toString(),
+                    txHash: hash,
+                  }),
+                }).catch(() => {});
+
+                await Promise.all([refreshBalances(safeAddress), refreshDeposits(safeAddress)]);
+                setAddFundsOpen(false);
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : "Deposit failed.";
+                setDepositError(msg);
+              } finally {
+                setDepositBusy(false);
+              }
             }}
           />
         </Modal>

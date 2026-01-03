@@ -27,3 +27,6 @@ remappings = [
   "@account-abstraction/=lib/account-abstraction/",
   "@openzeppelin/=lib/openzeppelin-contracts/",
 ]
+
+[rpc_endpoints]
+mantle_sepolia = "https://rpc.testnet.mantle.xyz"

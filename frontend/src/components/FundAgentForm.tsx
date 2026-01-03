@@ -6,12 +6,18 @@ export function FundAgentForm({
   onPrimary,
   primaryLabel,
   primaryVariant = "secondary",
+  balanceText = "--",
+  disabledPrimary = false,
+  errorText,
 }: {
   depositAmount: string;
   onChangeDepositAmount: (v: string) => void;
   onPrimary: () => void;
   primaryLabel: string;
   primaryVariant?: "primary" | "secondary";
+  balanceText?: string;
+  disabledPrimary?: boolean;
+  errorText?: string | null;
 }) {
   return (
     <div className="space-y-4">
@@ -84,11 +90,17 @@ export function FundAgentForm({
             <div>
               Balance:{" "}
               <span className="font-semibold text-black/70 dark:text-white/70">
-                --
+                {balanceText}
               </span>{" "}
               USDC
             </div>
           </div>
+
+          {errorText ? (
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs leading-5 text-black/70 dark:text-white/70">
+              {errorText}
+            </div>
+          ) : null}
 
           <div className="rounded-2xl border border-lime-400/25 bg-lime-400/10 px-4 py-3 text-xs leading-5 text-black/70 dark:border-lime-400/20 dark:text-white/70">
             Mantle native token needed for gas fee to deposit. Agent will handle
@@ -104,6 +116,7 @@ export function FundAgentForm({
                 : "bg-black/10 text-black/60 hover:bg-black/15 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/15",
             ].join(" ")}
             onClick={onPrimary}
+            disabled={disabledPrimary}
           >
             {primaryLabel}
           </button>
