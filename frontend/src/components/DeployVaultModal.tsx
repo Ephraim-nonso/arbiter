@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 import { FundAgentForm } from "@/components/FundAgentForm";
+import { targetChain } from "@/lib/wagmi";
 
 type AgentType = "conservative" | "balanced" | "aggressive";
 type Step =
@@ -293,9 +294,46 @@ export function DeployVaultModal({
             {deployedSafe ? (
               <div className="mt-2 text-xs text-black/60 dark:text-white/60">
                 Safe:{" "}
-                <span className="font-mono text-black/80 dark:text-white/80">
+                <a
+                  href={`${
+                    targetChain.blockExplorers?.default.url ?? ""
+                  }/address/${deployedSafe}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 font-mono text-black/80 underline underline-offset-4 hover:text-black dark:text-white/80 dark:hover:text-white"
+                  title="View on explorer"
+                >
                   {shortAddr(deployedSafe)}
-                </span>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M14 3h7v7"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M10 14L21 3"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M21 14v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </a>
               </div>
             ) : null}
           </div>
