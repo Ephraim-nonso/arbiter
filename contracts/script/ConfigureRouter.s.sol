@@ -11,7 +11,7 @@ import {ProtocolIds} from "../src/libraries/ProtocolIds.sol";
 ///   ROUTER=0x... forge script script/ConfigureRouter.s.sol:ConfigureRouter --rpc-url $RPC_URL --broadcast
 contract ConfigureRouter is Script {
     // Ondo Finance (Mantle) – provided by user
-    address internal constant ONDO_USDY = 0x05bE26527e817998A7206475496fDE1E68957c5A;
+    address internal constant ONDO_USDY = 0x05Be26527e817998A7206475496FDe1e68957c5a;
     // Mantle USD (replaces OUSG in our product)
     address internal constant ONDO_MANTLE_USD = 0xab575258d37EaA5C8956EfABe71F4eE8F6397cF3;
 
