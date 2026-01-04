@@ -386,7 +386,13 @@ export function DeployVaultModal({
                 chain: targetChain,
                 transport: http(targetChain.rpcUrls.default.http[0]),
               });
-              await publicClient.waitForTransactionReceipt({ hash });
+              const receipt = await publicClient.waitForTransactionReceipt({
+                hash,
+              });
+              const block = await publicClient.getBlock({
+                blockNumber: receipt.blockNumber,
+              });
+              const ts = Number(block.timestamp) * 1000;
 
               await fetch("/api/deposits", {
                 method: "POST",
@@ -396,6 +402,7 @@ export function DeployVaultModal({
                   safeAddress: deployedSafe,
                   amountMicros: amountMicros.toString(),
                   txHash: hash,
+                  ts,
                 }),
               }).catch(() => {});
 

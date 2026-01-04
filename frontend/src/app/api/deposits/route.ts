@@ -60,6 +60,7 @@ export async function POST(req: Request) {
         safeAddress?: string;
         amountMicros?: string;
         txHash?: string;
+        ts?: number;
       }
     | null;
 
@@ -67,6 +68,7 @@ export async function POST(req: Request) {
   const chainId = Number(body?.chainId);
   const amountMicros = String(body?.amountMicros ?? "");
   const txHash = (body?.txHash ?? "").toLowerCase();
+  const ts = typeof body?.ts === "number" && Number.isFinite(body.ts) ? body.ts : Date.now();
 
   if (!isAddr(safeAddress) || !Number.isFinite(chainId)) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
@@ -91,7 +93,7 @@ export async function POST(req: Request) {
     totalDepositedMicros: nextTotal.toString(),
     deposits: [
       ...prev.deposits,
-      { amountMicros: add.toString(), txHash: txHash || undefined, ts: Date.now() },
+      { amountMicros: add.toString(), txHash: txHash || undefined, ts },
     ],
   };
   db[k] = next;
