@@ -1,0 +1,24 @@
+{
+  "name": "arbiter-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx --env-file=.env src/agent.ts",
+    "start": "tsx --env-file=.env src/agent.ts"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.74",
+    "@langchain/langgraph": "^0.2.66",
+    "@langchain/ollama": "^0.1.8",
+    "@safe-global/protocol-kit": "^5.2.1",
+    "tsx": "^4.20.5",
+    "viem": "^2.43.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.14"
+  }
+}
+
+
