@@ -207,9 +207,18 @@ export default function VaultPage() {
             </div>
             <div className="mt-1 text-xs text-black/50 dark:text-white/50">
               Safe:{" "}
-              <span className="font-mono text-black/70 dark:text-white/70">
+              <a
+                href={`${
+                  targetChain.blockExplorers?.default.url ??
+                  "https://explorer.testnet.mantle.xyz"
+                }/address/${safeAddress}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-black/70 underline decoration-black/20 underline-offset-2 hover:text-black dark:text-white/70 dark:decoration-white/20 dark:hover:text-white"
+                title="View on explorer"
+              >
                 {shortAddr(safeAddress)}{" "}
-              </span>
+              </a>
               <span className="text-black/35 dark:text-white/35">
                 ({targetChain.name})
               </span>

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { groth16 } from "snarkjs";
+import { buildPoseidon } from "circomlibjs";
 
 function getArg(flag) {
   const idx = process.argv.indexOf(flag);
@@ -40,6 +41,11 @@ const allocations = parseCsvNums(allocationsCsv);
 if (capsBps.length !== 5) throw new Error("capsBps must have 5 entries (for N=5 protocol vector)");
 if (allocations.length !== 5) throw new Error("allocations must have 5 entries (for N=5 protocol vector)");
 
+// Compute policyHash = Poseidon([allowBitmap, capsBps[0..4]]) to match the circuit.
+const poseidon = await buildPoseidon();
+const F = poseidon.F;
+const policyHash = F.toObject(poseidon([allowBitmap, ...capsBps])).toString();
+
 const rootDir = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const buildDir = path.join(rootDir, "build");
 const wasmPath = path.join(buildDir, "policy_js", "policy.wasm");
@@ -53,6 +59,7 @@ const input = {
   vault: toUint160(vault).toString(),
   nonce,
   deadline,
+  policyHash,
   allowBitmap,
   capsBps,
   allocations

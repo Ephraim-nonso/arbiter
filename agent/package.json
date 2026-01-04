@@ -3,14 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "tsx --env-file=.env src/agent.ts",
-    "start": "tsx --env-file=.env src/agent.ts"
+    "start": "tsx --env-file=.env src/agent.ts",
+    "test:smoke": "tsx --env-file=.env test/smoke.ts",
+    "test:e2e": "tsx --env-file=.env test/e2e.ts"
   },
   "dependencies": {
+    "langchain": "^0.3.31",
     "@langchain/core": "^0.3.74",
+    "@langchain/community": "^0.3.41",
     "@langchain/langgraph": "^0.2.66",
-    "@langchain/ollama": "^0.1.8",
     "@safe-global/protocol-kit": "^5.2.1",
     "tsx": "^4.20.5",
     "viem": "^2.43.3",
@@ -20,5 +26,3 @@
     "@types/node": "^20.17.14"
   }
 }
-
-
