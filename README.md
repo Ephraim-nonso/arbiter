@@ -172,6 +172,36 @@ From [`agent/`](./agent):
 
 ---
 
+### Docker (reproducible agent tests)
+
+If you want to run the agent smoke/e2e tests in a consistent environment (Node 20 + pinned deps), use Docker Compose.
+
+1. Create a **repo-root** `.env` (same folder as `docker-compose.yml`) with at least:
+
+- `SAFE_ADDRESS=0x...`
+- `PROOF_GATE_SAFE_MODULE=0x...`
+
+Optional (for e2e):
+
+- `RPC_URL=https://rpc.testnet.mantle.xyz`
+- `AGENT_PRIVATE_KEY=0x...`
+- `DRY_RUN=true`
+
+2. Run smoke:
+
+```bash
+docker compose run --rm agent-test
+```
+
+3. Run e2e:
+
+```bash
+docker compose run --rm -e DRY_RUN=true agent-test npm run test:e2e
+docker compose run --rm -e DRY_RUN=false agent-test npm run test:e2e
+```
+
+---
+
 ### Notes / current state
 
 - The agent currently proves + submits `executeWithProof` with **empty Router calls** until protocol adapters / targets are finalized.

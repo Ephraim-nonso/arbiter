@@ -1,0 +1,11 @@
+**/node_modules
+**/.next
+**/target
+**/out
+**/cache
+**/broadcast
+**/.data
+**/.env
+**/*.log
+**/.DS_Store
+

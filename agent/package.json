@@ -7,10 +7,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "tsx --env-file=.env src/agent.ts",
-    "start": "tsx --env-file=.env src/agent.ts",
-    "test:smoke": "tsx --env-file=.env test/smoke.ts",
-    "test:e2e": "tsx --env-file=.env test/e2e.ts"
+    "dev": "tsx src/agent.ts",
+    "start": "tsx src/agent.ts",
+    "test:smoke": "tsx test/smoke.ts",
+    "test:e2e": "tsx test/e2e.ts"
   },
   "dependencies": {
     "langchain": "^0.3.31",

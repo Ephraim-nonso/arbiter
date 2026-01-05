@@ -35,6 +35,14 @@ Then run:
 npm run dev
 ```
 
+#### Environment loading
+
+The npm scripts don’t force `--env-file=.env`. So you can either:
+
+- export variables in your shell, or
+- use a runner like `dotenvx` / `direnv`, or
+- run `tsx --env-file=.env ...` manually if you prefer.
+
 ## Tests (recommended before Router integrations)
 
 ### Smoke (no chain write)

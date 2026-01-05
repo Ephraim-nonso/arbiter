@@ -38,8 +38,10 @@ export async function proveWithNode({
   // We run via bash -lc so base can include spaces/flags.
   const cmd = `${base} --vault ${safe} --nonce ${nonce} --deadline ${deadline} --allowBitmap ${allowBitmap} --capsBps ${capsBpsCsv} --allocations ${allocationsCsv}`;
 
+  const timeoutMs = Number(process.env.PROVE_TIMEOUT_MS ?? "300000"); // 5 minutes default
   const { stdout } = await execFileAsync("bash", ["-lc", cmd], {
     maxBuffer: 10 * 1024 * 1024,
+    timeout: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : undefined,
   });
 
   const parsed = ProveOutputSchema.parse(JSON.parse(stdout));

@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  agent-test:
+    build:
+      context: .
+      dockerfile: docker/agent-test.Dockerfile
+    environment:
+      # Required for smoke
+      SAFE_ADDRESS: ${SAFE_ADDRESS:?Set SAFE_ADDRESS in repo-root .env (next to docker-compose.yml) or pass -e SAFE_ADDRESS=...}
+      PROOF_GATE_SAFE_MODULE: ${PROOF_GATE_SAFE_MODULE:?Set PROOF_GATE_SAFE_MODULE in repo-root .env or pass -e PROOF_GATE_SAFE_MODULE=...}
+
+      # Optional (used by e2e)
+      RPC_URL: ${RPC_URL:-https://rpc.testnet.mantle.xyz}
+      AGENT_PRIVATE_KEY: ${AGENT_PRIVATE_KEY:-}
+      DRY_RUN: ${DRY_RUN:-true}
+
+      # Optional timeouts
+      LLAMA_FETCH_TIMEOUT_MS: ${LLAMA_FETCH_TIMEOUT_MS:-30000}
+      PROVE_TIMEOUT_MS: ${PROVE_TIMEOUT_MS:-300000}
+
+      # Optional override for prover invocation
+      ZK_PROVER_CMD: ${ZK_PROVER_CMD:-}
+    # Default runs smoke; override to `npm run test:e2e`
+    command: ["npm", "run", "test:smoke"]
+
+

@@ -89,7 +89,11 @@ process.stdout.write(
     },
     null,
     2
-  )
+  ),
+  () => {
+    // Ensure the process exits even if a library keeps open handles (common with wasm/worker usage).
+    process.exit(0);
+  }
 );
 
 

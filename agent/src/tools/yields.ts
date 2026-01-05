@@ -28,7 +28,14 @@ export async function fetchDefiLlamaPools({
   minTvlUsd?: number;
   topK?: number;
 }) {
-  const res = await fetch("https://yields.llama.fi/pools");
+  const url = process.env.LLAMA_POOLS_URL || "https://yields.llama.fi/pools";
+  const timeoutMs = Number(process.env.LLAMA_FETCH_TIMEOUT_MS ?? "30000");
+  const signal =
+    Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? AbortSignal.timeout(timeoutMs)
+      : undefined;
+
+  const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`DefiLlama fetch failed (${res.status})`);
   const json = PoolsResponseSchema.parse(await res.json());
   const pools: LlamaPool[] = (json.data ?? []) as LlamaPool[];

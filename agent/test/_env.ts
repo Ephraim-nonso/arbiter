@@ -1,6 +1,11 @@
 export function requireEnv(name: string): string {
   const v = process.env[name];
-  if (!v) throw new Error(`${name} is required in agent/.env`);
+  if (!v) {
+    throw new Error(
+      `${name} is required in the environment. ` +
+        `Set it via your shell export, a dotenv loader, or Docker Compose env vars.`
+    );
+  }
   return v;
 }
 
