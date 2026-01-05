@@ -64,35 +64,17 @@ function requirePaymasterUrl(): string {
   return v;
 }
 
-/**
- * Deploy a Safe smart account (proxy) via ERC-4337 (Option B).
- *
- * Notes:
- * - This uses a Bundler RPC (and optionally a Paymaster later) to submit a UserOperation.
- * - The Safe may be counterfactual initially; it becomes deployed on the first UserOp.
- * - For now, we deploy the Safe only. We DO NOT enable ProofGateSafeModule yet.
- *   TODO(arbiter): once ProofGateSafeModule is deployed on Mantle, pass its address in `safeModules`
- *   so it gets enabled during Safe setup, or send a follow-up Safe tx to enable it.
- */
-export async function deploySafe4337({
+export async function getSafeAccount({
   walletClient,
   saltNonce = BigInt(0),
 }: {
   walletClient: WalletClient;
   saltNonce?: bigint;
-}): Promise<{ safeAddress: Address; userOpHash: `0x${string}` }> {
-  const bundlerUrl = requireBundlerUrl();
-  const paymasterUrl = requirePaymasterUrl();
-
+}) {
   const publicClient = createPublicClient({
     chain: targetChain,
     transport: http(targetChain.rpcUrls.default.http[0]),
   });
-
-  const ownerAddress = walletClient.account?.address as Address | undefined;
-  if (!ownerAddress) {
-    throw new Error("No connected wallet account found.");
-  }
 
   const safeAccount = await toSafeSmartAccount({
     client: publicClient,
@@ -117,8 +99,24 @@ export async function deploySafe4337({
   });
 
   const safeAddress = await safeAccount.getAddress();
+  return { publicClient, safeAccount, safeAddress };
+}
 
-  // Pimlico-compatible paymaster client (sponsorship + gas price estimation).
+export async function getSafeSmartAccountClient({
+  walletClient,
+  saltNonce = BigInt(0),
+}: {
+  walletClient: WalletClient;
+  saltNonce?: bigint;
+}) {
+  const bundlerUrl = requireBundlerUrl();
+  const paymasterUrl = requirePaymasterUrl();
+
+  const { publicClient, safeAccount, safeAddress } = await getSafeAccount({
+    walletClient,
+    saltNonce,
+  });
+
   const paymasterClient = createPimlicoClient({
     chain: targetChain,
     transport: http(paymasterUrl),
@@ -133,7 +131,6 @@ export async function deploySafe4337({
       // Prefer sponsorship; fallback to standard paymaster methods if sponsor isn't enabled.
       getPaymasterData: async (params) => {
         try {
-          // viem passes UserOperation fields at top-level plus chainId/entryPointAddress/context.
           const {
             context,
             chainId: _c,
@@ -153,9 +150,7 @@ export async function deploySafe4337({
         } catch (err) {
           void err;
           return await paymasterClient.getPaymasterData(
-            params as unknown as Parameters<
-              typeof paymasterClient.getPaymasterData
-            >[0]
+            params as unknown as Parameters<typeof paymasterClient.getPaymasterData>[0]
           );
         }
       },
@@ -180,16 +175,13 @@ export async function deploySafe4337({
         } catch (err) {
           void err;
           return await paymasterClient.getPaymasterStubData(
-            params as unknown as Parameters<
-              typeof paymasterClient.getPaymasterStubData
-            >[0]
+            params as unknown as Parameters<typeof paymasterClient.getPaymasterStubData>[0]
           );
         }
       },
     },
     userOperation: {
       estimateFeesPerGas: async () => {
-        // If supported, use bundler/paymaster gas price oracle (Pimlico).
         try {
           const gasPrice = await paymasterClient.getUserOperationGasPrice();
           return gasPrice.fast;
@@ -203,6 +195,36 @@ export async function deploySafe4337({
         }
       },
     },
+  });
+
+  return { publicClient, safeAddress, smartAccountClient };
+}
+
+/**
+ * Deploy a Safe smart account (proxy) via ERC-4337 (Option B).
+ *
+ * Notes:
+ * - This uses a Bundler RPC (and optionally a Paymaster later) to submit a UserOperation.
+ * - The Safe may be counterfactual initially; it becomes deployed on the first UserOp.
+ * - For now, we deploy the Safe only. We DO NOT enable ProofGateSafeModule yet.
+ *   TODO(arbiter): once ProofGateSafeModule is deployed on Mantle, pass its address in `safeModules`
+ *   so it gets enabled during Safe setup, or send a follow-up Safe tx to enable it.
+ */
+export async function deploySafe4337({
+  walletClient,
+  saltNonce = BigInt(0),
+}: {
+  walletClient: WalletClient;
+  saltNonce?: bigint;
+}): Promise<{ safeAddress: Address; userOpHash: `0x${string}` }> {
+  const ownerAddress = walletClient.account?.address as Address | undefined;
+  if (!ownerAddress) {
+    throw new Error("No connected wallet account found.");
+  }
+
+  const { safeAddress, smartAccountClient } = await getSafeSmartAccountClient({
+    walletClient,
+    saltNonce,
   });
 
   // Trigger Safe deployment by sending a harmless call. This will deploy the Safe (if needed)

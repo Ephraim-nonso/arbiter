@@ -393,18 +393,7 @@ export function DeployVaultModal({
                 blockNumber: receipt.blockNumber,
               });
               const ts = Number(block.timestamp) * 1000;
-
-              await fetch("/api/deposits", {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({
-                  chainId: targetChain.id,
-                  safeAddress: deployedSafe,
-                  amountMicros: amountMicros.toString(),
-                  txHash: hash,
-                  ts,
-                }),
-              }).catch(() => {});
+              void ts;
 
               await refreshUsdcBalance(deployedSafe);
               setStep("chooseAgent");
