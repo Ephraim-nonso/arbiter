@@ -23,5 +23,3 @@ services:
       ZK_PROVER_CMD: ${ZK_PROVER_CMD:-}
     # Default runs smoke; override to `npm run test:e2e`
     command: ["npm", "run", "test:smoke"]
-
-

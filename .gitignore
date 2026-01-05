@@ -1,10 +1,12 @@
 # dependencies/build
 frontend/node_modules/
 frontend/.next/
+frontend/.vercel/
 contracts/lib/
 contracts/out/
 contracts/cache/
 zk/build/
 zk/node_modules
 agent/node_modules
+.vercel/
 .DS_Store
