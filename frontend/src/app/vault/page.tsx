@@ -195,12 +195,12 @@ export default function VaultPage() {
     lastDepositTs == null
       ? "--"
       : new Date(lastDepositTs).toLocaleString(undefined, {
-          year: "numeric",
-          month: "short",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
   return (
     <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
@@ -214,10 +214,9 @@ export default function VaultPage() {
             <div className="mt-1 text-xs text-black/50 dark:text-white/50">
               Safe:{" "}
               <a
-                href={`${
-                  targetChain.blockExplorers?.default.url ??
+                href={`${targetChain.blockExplorers?.default.url ??
                   "https://explorer.testnet.mantle.xyz"
-                }/address/${safeAddress}`}
+                  }/address/${safeAddress}`}
                 target="_blank"
                 rel="noreferrer"
                 className="font-mono text-black/70 underline decoration-black/20 underline-offset-2 hover:text-black dark:text-white/70 dark:decoration-white/20 dark:hover:text-white"
@@ -397,23 +396,23 @@ export default function VaultPage() {
                       {lastDepositTs == null
                         ? "--"
                         : new Date(lastDepositTs).toLocaleDateString(
-                            undefined,
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "2-digit",
-                            }
-                          )}
+                          undefined,
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "2-digit",
+                          }
+                        )}
                     </div>
                     <div className="mt-1">
                       {lastDepositTs == null
                         ? "No deposits yet"
                         : `Deposited at ${new Date(
-                            lastDepositTs
-                          ).toLocaleTimeString(undefined, {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}`}
+                          lastDepositTs
+                        ).toLocaleTimeString(undefined, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}`}
                     </div>
                   </div>
                 </div>
@@ -541,11 +540,11 @@ export default function VaultPage() {
                 });
                 await publicClient.waitForTransactionReceipt({ hash });
 
+                setAddFundsOpen(false);
                 await Promise.all([
                   refreshBalances(safeAddress),
                   refreshDeposits(safeAddress),
                 ]);
-                setAddFundsOpen(false);
               } catch (e) {
                 const msg = e instanceof Error ? e.message : "Deposit failed.";
                 setDepositError(msg);
@@ -645,12 +644,12 @@ export default function VaultPage() {
                   await smartAccountClient.waitForUserOperationReceipt({
                     hash: userOpHash,
                   });
+                  setDeactivateOpen(false);
 
                   await Promise.all([
                     refreshBalances(safe),
                     refreshDeposits(safe),
                   ]);
-                  setDeactivateOpen(false);
                 } catch (e) {
                   const msg =
                     e instanceof Error ? e.message : "Deactivation failed.";
