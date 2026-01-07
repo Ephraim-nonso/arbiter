@@ -1,3 +1,5 @@
 {
-  "rootDirectory": "frontend"
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "frontend/.next",
+  "installCommand": "cd frontend && npm install"
 }
