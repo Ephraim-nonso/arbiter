@@ -1,14 +1,31 @@
+"use client";
+
 import { SiteHeader } from "@/components/SiteHeader";
 import Image from "next/image";
-import { ProtocolApr } from "@/components/ProtocolAprs";
+import { useProtocolAprs } from "@/components/ProtocolAprs";
 import { HomeHeroCta } from "@/components/HomeHeroCta";
 import { AgniTokenBreakdown } from "@/components/AgniTokenBreakdown";
 import { OndoTokenBreakdown } from "@/components/OndoTokenBreakdown";
 import { InitTokenBreakdown } from "@/components/InitTokenBreakdown";
 import { StargateTokenBreakdown } from "@/components/StargateTokenBreakdown";
 import { PendleTokenBreakdown } from "@/components/PendleTokenBreakdown";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 export default function Home() {
+  const { loading: aprsLoading } = useProtocolAprs();
+
+  // Show spinner while initial data is loading
+  if (aprsLoading) {
+    return (
+      <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
+        <SiteHeader />
+        <main className="mx-auto w-full px-6 py-10 sm:px-10 lg:px-40">
+          <LoadingSpinner />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
       <SiteHeader />
@@ -51,32 +68,21 @@ export default function Home() {
           {/* Right / Protocol list */}
           <aside className="lg:col-span-3">
             <div className="grid grid-cols-2 gap-4">
-              <ProtocolCard
-                name="Ondo"
-                apr={<ProtocolApr protocolKey="ondo" />}
-                children={<OndoTokenBreakdown />}
-              />
-              <ProtocolCard
-                name="AGNI"
-                apr={<ProtocolApr protocolKey="agni" />}
-                children={<AgniTokenBreakdown />}
-              />
-              <ProtocolCard
-                name="Stargate"
-                apr={<ProtocolApr protocolKey="stargate" />}
-                children={<StargateTokenBreakdown />}
-              />
-              <ProtocolCard
-                name="Pendle"
-                apr={<ProtocolApr protocolKey="pendle" />}
-                children={<PendleTokenBreakdown />}
-              />
-              <ProtocolCard
-                name="INIT"
-                apr={<ProtocolApr protocolKey="init" />}
-                className="col-span-2"
-                children={<InitTokenBreakdown />}
-              />
+              <ProtocolCard name="Ondo">
+                <OndoTokenBreakdown />
+              </ProtocolCard>
+              <ProtocolCard name="AGNI">
+                <AgniTokenBreakdown />
+              </ProtocolCard>
+              <ProtocolCard name="Stargate">
+                <StargateTokenBreakdown />
+              </ProtocolCard>
+              <ProtocolCard name="Pendle">
+                <PendleTokenBreakdown />
+              </ProtocolCard>
+              <ProtocolCard name="INIT" className="col-span-2">
+                <InitTokenBreakdown />
+              </ProtocolCard>
             </div>
             <p className="mt-5 text-xs leading-5 text-black/50 dark:text-white/50">
               You’ll pick which protocols the agent can use. Execution is
@@ -109,12 +115,10 @@ export default function Home() {
 
 function ProtocolCard({
   name,
-  apr,
   className,
   children,
 }: {
   name: string;
-  apr: React.ReactNode;
   className?: string;
   children?: React.ReactNode;
 }) {
@@ -133,9 +137,6 @@ function ProtocolCard({
           </div>
           <div>
             <div className="text-sm font-semibold">{name}</div>
-            <div className="mt-0.5 text-xs text-black/60 dark:text-white/60">
-              
-            </div>
           </div>
         </div>
         <div className="h-5 w-10 rounded-full bg-lime-400/30 dark:bg-lime-400/20" />

@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { YieldProjectionChart } from "@/components/YieldProjectionChart";
 import { Modal } from "@/components/Modal";
 import { FundAgentForm } from "@/components/FundAgentForm";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import {
   createPublicClient,
   encodeFunctionData,
@@ -155,9 +156,7 @@ export default function VaultPage() {
       <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
         <SiteHeader />
         <main className="mx-auto w-full px-6 py-10 sm:px-10 lg:px-40">
-          <div className="rounded-3xl border border-black/10 bg-white p-6 text-sm text-black/70 shadow-sm dark:border-white/15 dark:bg-black dark:text-white/70">
-            Loading vault…
-          </div>
+          <LoadingSpinner />
         </main>
       </div>
     );
@@ -195,12 +194,12 @@ export default function VaultPage() {
     lastDepositTs == null
       ? "--"
       : new Date(lastDepositTs).toLocaleString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
 
   return (
     <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
@@ -214,9 +213,10 @@ export default function VaultPage() {
             <div className="mt-1 text-xs text-black/50 dark:text-white/50">
               Safe:{" "}
               <a
-                href={`${targetChain.blockExplorers?.default.url ??
+                href={`${
+                  targetChain.blockExplorers?.default.url ??
                   "https://explorer.testnet.mantle.xyz"
-                  }/address/${safeAddress}`}
+                }/address/${safeAddress}`}
                 target="_blank"
                 rel="noreferrer"
                 className="font-mono text-black/70 underline decoration-black/20 underline-offset-2 hover:text-black dark:text-white/70 dark:decoration-white/20 dark:hover:text-white"
@@ -396,23 +396,23 @@ export default function VaultPage() {
                       {lastDepositTs == null
                         ? "--"
                         : new Date(lastDepositTs).toLocaleDateString(
-                          undefined,
-                          {
-                            year: "numeric",
-                            month: "short",
-                            day: "2-digit",
-                          }
-                        )}
+                            undefined,
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "2-digit",
+                            }
+                          )}
                     </div>
                     <div className="mt-1">
                       {lastDepositTs == null
                         ? "No deposits yet"
                         : `Deposited at ${new Date(
-                          lastDepositTs
-                        ).toLocaleTimeString(undefined, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}`}
+                            lastDepositTs
+                          ).toLocaleTimeString(undefined, {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`}
                     </div>
                   </div>
                 </div>
@@ -538,7 +538,7 @@ export default function VaultPage() {
                   chain: targetChain,
                   transport: http(targetChain.rpcUrls.default.http[0]),
                 });
-                
+
                 // Wait for transaction receipt with extended timeout and polling
                 await publicClient.waitForTransactionReceipt({
                   hash,
