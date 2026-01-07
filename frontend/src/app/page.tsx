@@ -2,6 +2,11 @@ import { SiteHeader } from "@/components/SiteHeader";
 import Image from "next/image";
 import { ProtocolApr } from "@/components/ProtocolAprs";
 import { HomeHeroCta } from "@/components/HomeHeroCta";
+import { AgniTokenBreakdown } from "@/components/AgniTokenBreakdown";
+import { OndoTokenBreakdown } from "@/components/OndoTokenBreakdown";
+import { InitTokenBreakdown } from "@/components/InitTokenBreakdown";
+import { StargateTokenBreakdown } from "@/components/StargateTokenBreakdown";
+import { PendleTokenBreakdown } from "@/components/PendleTokenBreakdown";
 
 export default function Home() {
   return (
@@ -49,23 +54,28 @@ export default function Home() {
               <ProtocolCard
                 name="Ondo"
                 apr={<ProtocolApr protocolKey="ondo" />}
+                children={<OndoTokenBreakdown />}
               />
               <ProtocolCard
                 name="AGNI"
                 apr={<ProtocolApr protocolKey="agni" />}
+                children={<AgniTokenBreakdown />}
               />
               <ProtocolCard
                 name="Stargate"
                 apr={<ProtocolApr protocolKey="stargate" />}
+                children={<StargateTokenBreakdown />}
               />
               <ProtocolCard
-                name="Mantle Rewards"
-                apr={<ProtocolApr protocolKey="mantle-rewards" />}
+                name="Pendle"
+                apr={<ProtocolApr protocolKey="pendle" />}
+                children={<PendleTokenBreakdown />}
               />
               <ProtocolCard
                 name="INIT"
                 apr={<ProtocolApr protocolKey="init" />}
                 className="col-span-2"
+                children={<InitTokenBreakdown />}
               />
             </div>
             <p className="mt-5 text-xs leading-5 text-black/50 dark:text-white/50">
@@ -101,10 +111,12 @@ function ProtocolCard({
   name,
   apr,
   className,
+  children,
 }: {
   name: string;
   apr: React.ReactNode;
   className?: string;
+  children?: React.ReactNode;
 }) {
   return (
     <div
@@ -122,12 +134,13 @@ function ProtocolCard({
           <div>
             <div className="text-sm font-semibold">{name}</div>
             <div className="mt-0.5 text-xs text-black/60 dark:text-white/60">
-              {apr} APR
+              
             </div>
           </div>
         </div>
         <div className="h-5 w-10 rounded-full bg-lime-400/30 dark:bg-lime-400/20" />
       </div>
+      {children}
     </div>
   );
 }

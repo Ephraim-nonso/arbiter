@@ -30,9 +30,9 @@ const PROTOCOLS = [
     llamaProjects: ["stargate-v1", "stargate"],
   },
   {
-    key: "mantle-rewards",
-    name: "Mantle Rewards",
-    llamaProjects: ["mantle-rewards", "mantle rewards"],
+    key: "pendle",
+    name: "Pendle",
+    llamaProjects: ["pendle", "pendle-finance"],
   },
   {
     key: "init",

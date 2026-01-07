@@ -538,7 +538,13 @@ export default function VaultPage() {
                   chain: targetChain,
                   transport: http(targetChain.rpcUrls.default.http[0]),
                 });
-                await publicClient.waitForTransactionReceipt({ hash });
+                
+                // Wait for transaction receipt with extended timeout and polling
+                await publicClient.waitForTransactionReceipt({
+                  hash,
+                  timeout: 120_000, // 120 seconds timeout
+                  pollingInterval: 2_000, // Poll every 2 seconds
+                });
 
                 setAddFundsOpen(false);
                 await Promise.all([
