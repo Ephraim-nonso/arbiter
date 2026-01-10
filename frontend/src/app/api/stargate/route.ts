@@ -54,7 +54,7 @@ export async function GET() {
     // Since tokensInUsd contains global token values, we need global TVL for accurate percentages
     let globalTvl = 0;
     if (data.currentChainTvls) {
-      globalTvl = Object.values(data.currentChainTvls).reduce(
+      globalTvl = Object.values(data.currentChainTvls).reduce<number>(
         (sum, tvl) => sum + (typeof tvl === "number" ? tvl : 0),
         0
       );
