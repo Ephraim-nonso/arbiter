@@ -12,6 +12,7 @@ import {
 import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 import { FundAgentForm } from "@/components/FundAgentForm";
+import { toast } from "react-toastify";
 
 type AgentType = "conservative" | "balanced" | "aggressive";
 type Step =
@@ -229,11 +230,23 @@ export function DeployVaultModal({
         if (!onDeployVault) await sleep(1200);
         if (cancelled) return;
         setStep("created");
+        
+        // Show success toast
+        toast.success("Vault deployed successfully!", {
+          position: "top-right",
+          autoClose: 5000,
+        });
       } catch (e) {
         if (cancelled) return;
         const msg =
           e instanceof Error ? e.message : "Failed to deploy account.";
         setDeployError(msg);
+        
+        // Show error toast
+        toast.error(`Vault deployment failed: ${msg}`, {
+          position: "top-right",
+          autoClose: 7000,
+        });
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -396,10 +409,23 @@ export function DeployVaultModal({
               void ts;
 
               await refreshUsdcBalance(deployedSafe);
+              
+              // Show success toast
+              toast.success(`Successfully deposited ${depositAmount} USDC to vault!`, {
+                position: "top-right",
+                autoClose: 5000,
+              });
+              
               setStep("chooseAgent");
             } catch (e) {
               const msg = e instanceof Error ? e.message : "Deposit failed.";
               setDepositError(msg);
+              
+              // Show error toast
+              toast.error(`Deposit failed: ${msg}`, {
+                position: "top-right",
+                autoClose: 7000,
+              });
             } finally {
               setBusy(false);
             }

@@ -73,9 +73,7 @@ export function OndoTokenBreakdown() {
 
   return (
     <div className="mt-3 space-y-2 border-t border-black/10 pt-3 dark:border-white/10">
-      <div className="text-xs font-medium text-black/60 dark:text-white/60">
-        Token breakdown
-      </div>
+      <div className="text-xs font-medium text-black/60 dark:text-white/60"></div>
       <div className="space-y-1.5 text-xs">
         <div className="flex items-center justify-between">
           <span className="text-black/70 dark:text-white/70">OUSG</span>
@@ -109,4 +107,3 @@ export function OndoTokenBreakdown() {
     </div>
   );
 }
-

@@ -91,7 +91,7 @@ export default function Home() {
           </aside>
         </div>
 
-        {/* Lower content to reduce “empty bottom” and make the homepage feel complete */}
+        {/* Lower content to reduce "empty bottom" and make the homepage feel complete */}
         <section className="mt-auto rounded-3xl border border-black/10 bg-white p-6 shadow-sm dark:border-white/15 dark:bg-black sm:p-8">
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <Feature

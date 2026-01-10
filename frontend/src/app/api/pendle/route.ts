@@ -40,13 +40,23 @@ export async function GET() {
 
     const data = (await res.json()) as PendleProtocolData;
 
-    // Get current TVL on Mantle (prefer currentChainTvls, fallback to latest chainTvls entry)
-    let totalTvl = data.currentChainTvls?.Mantle ?? 0;
-    if (totalTvl === 0 && data.chainTvls?.Mantle) {
+    // Get current TVL on Mantle (for display)
+    let mantleTvl = data.currentChainTvls?.Mantle ?? 0;
+    if (mantleTvl === 0 && data.chainTvls?.Mantle) {
       const mantleTvls = data.chainTvls.Mantle;
       if (mantleTvls.length > 0) {
-        totalTvl = mantleTvls[mantleTvls.length - 1]?.totalLiquidityUSD ?? 0;
+        mantleTvl = mantleTvls[mantleTvls.length - 1]?.totalLiquidityUSD ?? 0;
       }
+    }
+
+    // Calculate global TVL (sum of all chains) for percentage calculations
+    // Since tokensInUsd contains global token values, we need global TVL for accurate percentages
+    let globalTvl = 0;
+    if (data.currentChainTvls) {
+      globalTvl = Object.values(data.currentChainTvls).reduce(
+        (sum, tvl) => sum + (typeof tvl === "number" ? tvl : 0),
+        0
+      );
     }
 
     // Get the most recent token balances
@@ -110,12 +120,13 @@ export async function GET() {
       }
     }
 
-    // Calculate percentages
-    const usdcPercent = totalTvl > 0 ? (usdcValue / totalTvl) * 100 : 0;
-    const usdyPercent = totalTvl > 0 ? (usdyValue / totalTvl) * 100 : 0;
+    // Calculate percentages using global TVL (since token values are global across all chains)
+    // This ensures accurate percentages that don't exceed 100%
+    const usdcPercent = globalTvl > 0 ? (usdcValue / globalTvl) * 100 : 0;
+    const usdyPercent = globalTvl > 0 ? (usdyValue / globalTvl) * 100 : 0;
 
     const response: {
-      totalTvl: number;
+      totalTvl: number; // Mantle TVL for display
       tokens: {
         USDC: { value: number; percent: number };
         USDY: { value: number; percent: number };
@@ -126,9 +137,11 @@ export async function GET() {
         availableTokens?: string[];
         usdcMatches?: string[];
         usdyMatches?: string[];
+        globalTvl?: number;
+        mantleTvl?: number;
       };
     } = {
-      totalTvl,
+      totalTvl: mantleTvl, // Return Mantle TVL for display
       tokens: {
         USDC: {
           value: usdcValue,
@@ -163,6 +176,8 @@ export async function GET() {
         availableTokens: availableTokens.slice(0, 20), // First 20 tokens
         usdcMatches,
         usdyMatches,
+        globalTvl,
+        mantleTvl,
       };
     }
 

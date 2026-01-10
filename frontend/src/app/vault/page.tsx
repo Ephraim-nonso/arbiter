@@ -23,6 +23,7 @@ import {
 } from "@/lib/usdc";
 import { fetchUsdcDepositStats } from "@/lib/deposits";
 import { getSafeAccount, getSafeSmartAccountClient } from "@/lib/safeDeploy";
+import { toast } from "react-toastify";
 
 type ViewTab = "position" | "projection";
 
@@ -427,7 +428,7 @@ export default function VaultPage() {
                 NEW {formatPct(netApr)} APR
               </div>
               <div className="mt-4 text-xl font-semibold text-black dark:text-white">
-                Earn smarter with Mantle rewards
+                Earn smarter with Mantle Rewards Station
               </div>
               <div className="mt-4 text-xs text-black/50 dark:text-white/50">
                 Total Mantle Rewards
@@ -546,7 +547,17 @@ export default function VaultPage() {
                   pollingInterval: 2_000, // Poll every 2 seconds
                 });
 
+                // Show success toast
+                toast.success(
+                  `Successfully deposited ${depositAmount} USDC to vault!`,
+                  {
+                    position: "top-right",
+                    autoClose: 5000,
+                  }
+                );
+
                 setAddFundsOpen(false);
+                setDepositAmount("");
                 await Promise.all([
                   refreshBalances(safeAddress),
                   refreshDeposits(safeAddress),
@@ -554,6 +565,12 @@ export default function VaultPage() {
               } catch (e) {
                 const msg = e instanceof Error ? e.message : "Deposit failed.";
                 setDepositError(msg);
+
+                // Show error toast
+                toast.error(`Deposit failed: ${msg}`, {
+                  position: "top-right",
+                  autoClose: 7000,
+                });
               } finally {
                 setDepositBusy(false);
               }
@@ -650,6 +667,19 @@ export default function VaultPage() {
                   await smartAccountClient.waitForUserOperationReceipt({
                     hash: userOpHash,
                   });
+
+                  // Show success toast
+                  const withdrawAmount = formatUsdcFromMicros(bal);
+                  toast.success(
+                    `Successfully withdrew ${withdrawAmount.toFixed(
+                      6
+                    )} USDC from vault!`,
+                    {
+                      position: "top-right",
+                      autoClose: 5000,
+                    }
+                  );
+
                   setDeactivateOpen(false);
 
                   await Promise.all([
@@ -660,6 +690,12 @@ export default function VaultPage() {
                   const msg =
                     e instanceof Error ? e.message : "Deactivation failed.";
                   setDeactivateError(msg);
+
+                  // Show error toast
+                  toast.error(`Withdrawal failed: ${msg}`, {
+                    position: "top-right",
+                    autoClose: 7000,
+                  });
                 } finally {
                   setDeactivateBusy(false);
                 }
