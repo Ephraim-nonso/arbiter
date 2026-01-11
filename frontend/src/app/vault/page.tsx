@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useConnection, useWalletClient } from "wagmi";
 import { targetChain } from "@/lib/wagmi";
-import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { YieldProjectionChart } from "@/components/YieldProjectionChart";
 import { Modal } from "@/components/Modal";
 import { FundAgentForm } from "@/components/FundAgentForm";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { DeployVaultModal } from "@/components/DeployVaultModal";
 import {
   createPublicClient,
   encodeFunctionData,
@@ -16,6 +16,7 @@ import {
   http,
   type Address,
 } from "viem";
+import { deploySafe4337 } from "@/lib/safeDeploy";
 import {
   formatUsdcFromMicros,
   getUsdcAddressForChain,
@@ -46,6 +47,7 @@ export default function VaultPage() {
   const { data: walletClient } = useWalletClient();
 
   const [safeAddress, setSafeAddress] = useState<string | null>(null);
+  const [safeDeployed, setSafeDeployed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<ViewTab>("position");
   const [addFundsOpen, setAddFundsOpen] = useState(false);
@@ -58,6 +60,7 @@ export default function VaultPage() {
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [deactivateBusy, setDeactivateBusy] = useState(false);
   const [deactivateError, setDeactivateError] = useState<string | null>(null);
+  const [deployOpen, setDeployOpen] = useState(false);
 
   // MVP values (replace with on-chain reads once protocol adapters land).
   const lifetimeEarnings = 0.0;
@@ -97,6 +100,19 @@ export default function VaultPage() {
     setLastDepositTs(stats.lastInTsMs);
   }
 
+  // Reset all state when wallet address changes
+  useEffect(() => {
+    if (!isConnected || !owner) {
+      // Clear state when disconnected
+      setSafeAddress(null);
+      setSafeDeployed(false);
+      setUsdcBalance(null);
+      setTotalDeposited(null);
+      setLastDepositTs(null);
+      return;
+    }
+  }, [isConnected, owner]);
+
   useEffect(() => {
     if (!isConnected || !owner) return;
     if (!walletClient) return;
@@ -105,9 +121,24 @@ export default function VaultPage() {
       try {
         setLoading(true);
         // Safe address is deterministic for (owner, saltNonce) and doesn't require backend storage.
-        const { safeAddress: addr } = await getSafeAccount({ walletClient });
+        const { publicClient, safeAddress: addr } = await getSafeAccount({
+          walletClient,
+        });
         if (cancelled) return;
         setSafeAddress(addr);
+
+        // Check if Safe is actually deployed on-chain
+        const bytecode = await publicClient.getBytecode({ address: addr });
+        const deployed = !!bytecode && bytecode !== "0x";
+        if (cancelled) return;
+        setSafeDeployed(deployed);
+
+        // If not deployed, clear balance/deposit data
+        if (!deployed) {
+          setUsdcBalance(null);
+          setTotalDeposited(null);
+          setLastDepositTs(null);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -118,7 +149,8 @@ export default function VaultPage() {
   }, [isConnected, owner, walletClient]);
 
   useEffect(() => {
-    if (!safeAddress) return;
+    // Only refresh balances if Safe is deployed
+    if (!safeAddress || !safeDeployed) return;
     let cancelled = false;
     (async () => {
       try {
@@ -137,15 +169,54 @@ export default function VaultPage() {
     return () => {
       cancelled = true;
     };
-  }, [safeAddress]);
+  }, [safeAddress, safeDeployed]);
 
   if (!isConnected) {
     return (
       <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
         <SiteHeader />
-        <main className="mx-auto w-full px-6 py-10 sm:px-10 lg:px-40">
-          <div className="rounded-3xl border border-black/10 bg-white p-6 text-sm text-black/70 shadow-sm dark:border-white/15 dark:bg-black dark:text-white/70">
-            Connect your wallet to view your vault dashboard.
+        <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-6 py-10 sm:px-10 lg:px-40">
+          <div className="w-full max-w-lg">
+            <div className="rounded-3xl border border-black/10 bg-gradient-to-br from-white to-black/5 p-8 text-center shadow-lg dark:border-white/15 dark:from-black dark:to-white/5">
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-black/10 bg-black/5 dark:border-white/15 dark:bg-white/10">
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="text-black/60 dark:text-white/60"
+                >
+                  <path
+                    d="M19 7H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-black/90 dark:text-white/90">
+                Connect Your Wallet
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-black/60 dark:text-white/60">
+                Connect your wallet to view and manage your Arbiter vault
+                dashboard.
+              </p>
+            </div>
           </div>
         </main>
       </div>
@@ -156,35 +227,106 @@ export default function VaultPage() {
     return (
       <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
         <SiteHeader />
-        <main className="mx-auto w-full px-6 py-10 sm:px-10 lg:px-40">
+        <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-6 py-10 sm:px-10 lg:px-40">
           <LoadingSpinner />
         </main>
       </div>
     );
   }
 
-  if (!safeAddress) {
+  if (!safeAddress || !safeDeployed) {
     return (
       <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
         <SiteHeader />
-        <main className="mx-auto w-full px-6 py-10 sm:px-10 lg:px-40">
-          <div className="rounded-3xl border border-black/10 bg-white p-6 text-sm text-black/70 shadow-sm dark:border-white/15 dark:bg-black dark:text-white/70">
-            <div className="font-semibold text-black/90 dark:text-white/90">
-              No vault found
-            </div>
-            <div className="mt-1 text-sm text-black/60 dark:text-white/60">
-              Deploy a vault first, then come back here to manage it.
-            </div>
-            <div className="mt-4">
-              <Link
-                href="/"
-                className="inline-flex h-10 items-center justify-center rounded-full bg-lime-400 px-4 text-sm font-semibold text-black shadow-sm transition hover:bg-lime-300"
-              >
-                Go to home
-              </Link>
+        <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-6 py-10 sm:px-10 lg:px-40">
+          <div className="w-full max-w-lg">
+            <div className="rounded-3xl border border-black/10 bg-gradient-to-br from-white to-lime-50/50 p-8 text-center shadow-lg dark:border-white/15 dark:from-black dark:to-lime-950/20">
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-lime-400/20 bg-lime-400/10 dark:border-lime-400/30 dark:bg-lime-400/5">
+                <svg
+                  width="40"
+                  height="40"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="text-lime-600 dark:text-lime-400"
+                >
+                  <path
+                    d="M20 7h-3V4a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M9 4v3h6V4M9 4v3h6V4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity="0.5"
+                  />
+                  <path
+                    d="M12 12v4M10 14h4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-black/90 dark:text-white/90">
+                No Vault Found
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-black/60 dark:text-white/60">
+                You don&apos;t have a vault deployed yet. Deploy one to start
+                earning yield with Arbiter&apos;s automated yield optimization.
+              </p>
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setDeployOpen(true)}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-lime-400 px-6 text-sm font-semibold text-black shadow-md transition-all hover:bg-lime-300 hover:shadow-lg active:scale-[0.98]"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="text-black"
+                  >
+                    <path
+                      d="M12 5v14M5 12h14"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Deploy Vault
+                </button>
+              </div>
             </div>
           </div>
         </main>
+        <DeployVaultModal
+          open={deployOpen}
+          onClose={() => setDeployOpen(false)}
+          onDeployVault={async () => {
+            if (!walletClient) {
+              throw new Error("Wallet not connected");
+            }
+            const { safeAddress: deployedAddr } = await deploySafe4337({
+              walletClient,
+            });
+            // Refresh the page state after deployment
+            const { publicClient, safeAddress: addr } = await getSafeAccount({
+              walletClient,
+            });
+            const bytecode = await publicClient.getBytecode({ address: addr });
+            setSafeAddress(addr);
+            setSafeDeployed(!!bytecode && bytecode !== "0x");
+            return deployedAddr;
+          }}
+        />
       </div>
     );
   }
@@ -491,7 +633,7 @@ export default function VaultPage() {
                     Total Deposits
                   </div>
                   <div className="font-semibold text-black dark:text-white">
-                    {totalDepositedDisplay.toFixed(2)} USDC
+                    {totalDepositedDisplay.toFixed(2)} MNT
                   </div>
                 </div>
                 <button
