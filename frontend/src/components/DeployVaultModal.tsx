@@ -13,6 +13,13 @@ import { Modal } from "@/components/Modal";
 import { Spinner } from "@/components/Spinner";
 import { FundAgentForm } from "@/components/FundAgentForm";
 import { toast } from "react-toastify";
+import {
+  configureProofGateModule,
+  updateProofGateConfig,
+  calculatePolicyHash,
+  checkProofGateConfig,
+  type PolicyConfig,
+} from "@/lib/proofGate";
 
 type AgentType = "conservative" | "balanced" | "aggressive";
 type Step =
@@ -148,6 +155,8 @@ export function DeployVaultModal({
   onDeployVault,
   onSelectAgent,
   onSaveRules,
+  editMode = false,
+  editSafeAddress,
 }: {
   open: boolean;
   onClose: () => void;
@@ -161,6 +170,8 @@ export function DeployVaultModal({
     venues: ProtocolKey[];
     noLeverage: true;
   }) => Promise<void> | void;
+  editMode?: boolean;
+  editSafeAddress?: Address;
 }) {
   const [step, setStep] = useState<Step>("creating");
   const [selectedAgent, setSelectedAgent] = useState<AgentType>("conservative");
@@ -170,6 +181,7 @@ export function DeployVaultModal({
   const [deployError, setDeployError] = useState<string | null>(null);
   const [depositError, setDepositError] = useState<string | null>(null);
   const [usdcBalance, setUsdcBalance] = useState<number | null>(null);
+  const [activateError, setActivateError] = useState<string | null>(null);
 
   const { data: walletClient } = useWalletClient();
 
@@ -198,16 +210,55 @@ export function DeployVaultModal({
   }, [customVenues, style]);
 
   const title = useMemo(() => {
+    if (editMode) {
+      if (step === "chooseAgent") return "Edit Agent";
+      if (step === "rules") return "Edit Policy Rules";
+      if (step === "activate") return "Update Configuration";
+    }
     if (step === "creating") return "Deploy vault";
     if (step === "created") return "Vault created";
     if (step === "deposit") return "Fund your Agent";
     if (step === "chooseAgent") return "Set your agent";
     return "Set your agent rules";
-  }, [step]);
+  }, [step, editMode]);
 
   useEffect(() => {
     if (!open) return;
-    // reset flow each time it opens
+
+    // Edit mode: start from chooseAgent step and load current config
+    if (editMode && editSafeAddress) {
+      setStep("chooseAgent");
+      setDeployedSafe(editSafeAddress);
+      let cancelled = false;
+
+      (async () => {
+        try {
+          setBusy(true);
+          // Note: We can't decode the policy hash to get the exact current settings
+          // because it's a hash. So we start with defaults and let the user re-select.
+          // In a production system, you might store policy configs off-chain or use
+          // events to track the policy history.
+          const config = await checkProofGateConfig(editSafeAddress);
+          if (config.policyHash && config.agentEnabled) {
+            // Policy is configured, but we can't decode it, so start with balanced defaults
+            setSelectedAgent("balanced");
+            setStyle("balanced");
+          }
+        } catch (e) {
+          if (!cancelled) {
+            console.error("Failed to load current config:", e);
+          }
+        } finally {
+          if (!cancelled) setBusy(false);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // Deploy mode: reset flow and deploy
     setStep("creating");
     setSelectedAgent("conservative");
     setBusy(false);
@@ -217,6 +268,7 @@ export function DeployVaultModal({
     setDeployError(null);
     setDepositError(null);
     setUsdcBalance(null);
+    setActivateError(null);
 
     let cancelled = false;
     (async () => {
@@ -255,7 +307,7 @@ export function DeployVaultModal({
     return () => {
       cancelled = true;
     };
-  }, [open, onDeployVault]);
+  }, [open, onDeployVault, editMode, editSafeAddress]);
 
   async function refreshUsdcBalance(safeAddr: string) {
     const publicClient = createPublicClient({
@@ -755,24 +807,119 @@ export function DeployVaultModal({
         <div className="space-y-4">
           <div className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-black/70 dark:border-white/15 dark:bg-black dark:text-white/70">
             <div className="font-semibold text-black/90 dark:text-white/90">
-              Activate Agent
+              {editMode ? "Update Configuration" : "Activate Agent"}
             </div>
             <div className="mt-1 text-sm text-black/60 dark:text-white/60">
-              Next: enable the agent + proof-gated execution (placeholder).
+              {editMode
+                ? "Update your vault&apos;s policy hash and agent settings. Changes will take effect immediately."
+                : "Configure your vault&apos;s proof-gated execution module. This will set your policy hash and enable the selected agent to execute trades on your behalf."}
             </div>
           </div>
 
+          {activateError ? (
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-black/80 dark:text-white/80">
+              <div className="font-semibold">Activation failed</div>
+              <div className="mt-1 text-xs text-black/60 dark:text-white/60">
+                {activateError}
+              </div>
+            </div>
+          ) : null}
+
           <button
             type="button"
-            className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-full bg-lime-400 px-5 text-sm font-semibold text-black shadow-sm transition hover:bg-lime-300"
-            onClick={onClose}
+            disabled={busy || !deployedSafe || !walletClient}
+            className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-full bg-lime-400 px-5 text-sm font-semibold text-black shadow-sm transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={async () => {
+              if (!deployedSafe || !walletClient) {
+                setActivateError("Wallet or vault not ready.");
+                return;
+              }
+              try {
+                setActivateError(null);
+                setBusy(true);
+
+                // Prepare policy config
+                const policyConfig: PolicyConfig = {
+                  style,
+                  diversification,
+                  activity,
+                  protection,
+                  venues: effectiveVenues,
+                  noLeverage: true,
+                  agentType: selectedAgent,
+                };
+
+                // Configure or update ProofGateSafeModule
+                if (editMode && editSafeAddress) {
+                  // Edit mode: update policy hash only (agent EOA stays the same)
+                  await updateProofGateConfig({
+                    walletClient,
+                    safeAddress: editSafeAddress,
+                    policyConfig,
+                  });
+
+                  toast.success("Policy updated successfully!", {
+                    position: "top-right",
+                    autoClose: 5000,
+                  });
+                } else {
+                  // Deploy mode: set policy hash and enable agent EOA
+                  await configureProofGateModule({
+                    walletClient,
+                    safeAddress: deployedSafe as Address,
+                    policyConfig,
+                    agentType: selectedAgent,
+                  });
+
+                  toast.success("Agent activated successfully!", {
+                    position: "top-right",
+                    autoClose: 5000,
+                  });
+                }
+
+                // Call onSaveRules callback if provided
+                if (onSaveRules) {
+                  await onSaveRules({
+                    style,
+                    diversification,
+                    activity,
+                    protection,
+                    venues: effectiveVenues,
+                    noLeverage: true,
+                  });
+                }
+
+                onClose();
+              } catch (e) {
+                const msg =
+                  e instanceof Error
+                    ? e.message
+                    : "Failed to activate agent.";
+                setActivateError(msg);
+
+                // Show error toast
+                toast.error(`Activation failed: ${msg}`, {
+                  position: "top-right",
+                  autoClose: 7000,
+                });
+              } finally {
+                setBusy(false);
+              }
+            }}
           >
-            Done
+            {busy
+              ? editMode
+                ? "Updating…"
+                : "Activating…"
+              : editMode
+              ? "Update Configuration"
+              : "Activate Agent"}
           </button>
 
           <button
             type="button"
-            className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-black transition hover:bg-black/5 dark:border-white/15 dark:bg-black dark:text-white dark:hover:bg-white/10"
+            disabled={busy}
+            className="inline-flex h-11 w-full cursor-pointer items-center justify-center rounded-full border border-black/10 bg-white px-5 text-sm font-semibold text-black transition hover:bg-black/5 dark:border-white/15 dark:bg-black dark:text-white dark:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
             onClick={() => setStep("rules")}
           >
             Back

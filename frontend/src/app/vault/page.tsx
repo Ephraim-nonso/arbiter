@@ -61,6 +61,7 @@ export default function VaultPage() {
   const [deactivateBusy, setDeactivateBusy] = useState(false);
   const [deactivateError, setDeactivateError] = useState<string | null>(null);
   const [deployOpen, setDeployOpen] = useState(false);
+  const [editPolicyOpen, setEditPolicyOpen] = useState(false);
 
   // MVP values (replace with on-chain reads once protocol adapters land).
   const lifetimeEarnings = 0.0;
@@ -374,6 +375,15 @@ export default function VaultPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-black transition hover:bg-black/5 dark:border-white/15 dark:bg-black dark:text-white dark:hover:bg-white/10"
+              onClick={() => {
+                setEditPolicyOpen(true);
+              }}
+            >
+              Edit Policy
+            </button>
             <button
               type="button"
               className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full border border-black/10 bg-white px-4 text-sm font-semibold text-black transition hover:bg-black/5 dark:border-white/15 dark:bg-black dark:text-white dark:hover:bg-white/10"
@@ -856,6 +866,23 @@ export default function VaultPage() {
             </button>
           </div>
         </Modal>
+
+        <DeployVaultModal
+          open={editPolicyOpen}
+          onClose={() => setEditPolicyOpen(false)}
+          editMode={true}
+          editSafeAddress={safeAddress as Address | undefined}
+          onDeployVault={async () => {
+            // Not used in edit mode
+            return safeAddress;
+          }}
+          onSelectAgent={() => {
+            // Optional callback
+          }}
+          onSaveRules={() => {
+            // Optional callback
+          }}
+        />
       </main>
     </div>
   );
