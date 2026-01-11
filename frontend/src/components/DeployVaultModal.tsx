@@ -854,7 +854,6 @@ export function DeployVaultModal({
                   // Edit mode: update policy hash only (agent EOA stays the same)
                   await updateProofGateConfig({
                     walletClient,
-                    safeAddress: editSafeAddress,
                     policyConfig,
                   });
 
@@ -866,9 +865,7 @@ export function DeployVaultModal({
                   // Deploy mode: set policy hash and enable agent EOA
                   await configureProofGateModule({
                     walletClient,
-                    safeAddress: deployedSafe as Address,
                     policyConfig,
-                    agentType: selectedAgent,
                   });
 
                   toast.success("Agent activated successfully!", {

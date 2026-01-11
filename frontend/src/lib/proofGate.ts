@@ -49,7 +49,7 @@ const PROOF_GATE_ABI = [
   },
 ] as const;
 
-type PolicyConfig = {
+export type PolicyConfig = {
   style: string;
   diversification: string;
   activity: string;
@@ -134,14 +134,10 @@ function getAgentAddress(): Address {
  */
 export async function configureProofGateModule({
   walletClient,
-  safeAddress,
   policyConfig,
-  agentType,
 }: {
   walletClient: WalletClient;
-  safeAddress: Address;
   policyConfig: PolicyConfig;
-  agentType: string; // Used for policy hash calculation, but all users enable the same agent EOA
 }): Promise<void> {
   const moduleAddress = getProofGateModuleAddress();
   const agentAddress = getAgentAddress(); // Single agent EOA for all users
@@ -272,11 +268,9 @@ export async function checkProofGateConfig(safeAddress: Address): Promise<{
  */
 export async function updateProofGateConfig({
   walletClient,
-  safeAddress,
   policyConfig,
 }: {
   walletClient: WalletClient;
-  safeAddress: Address;
   policyConfig: PolicyConfig;
 }): Promise<void> {
   const moduleAddress = getProofGateModuleAddress();
