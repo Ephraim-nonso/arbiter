@@ -22,6 +22,10 @@ import {
   optimizeAllocations,
   optimizeAllocationsMetadata,
 } from "./tools/optimize.js";
+import {
+  buildRouterCalls,
+  buildRouterCallsMetadata,
+} from "./tools/routerCalls.js";
 
 function requireEnv(name: string) {
   const v = process.env[name];
@@ -70,6 +74,7 @@ Never invent on-chain state. Always call the tools. If the generated proof's pol
       tool(fetchDefiLlamaPools, fetchDefiLlamaPoolsMetadata),
       tool(readProofGateState, readProofGateStateMetadata),
       tool(optimizeAllocations, optimizeAllocationsMetadata),
+      tool(buildRouterCalls, buildRouterCallsMetadata),
       tool(proveWithNode, proveWithNodeMetadata),
       tool(buildExecuteWithProofTx, buildExecuteWithProofTxMetadata),
       tool(sendAgentTx, sendAgentTxMetadata),
@@ -106,10 +111,11 @@ Required steps (tool calls):
 1) readProofGateState to get on-chain policyHash and nonce for the safe (and agentEnabled if possible).
 2) fetchDefiLlamaPools(chain="Mantle", stableHint="USDC", topK=7)
 3) optimizeAllocations(pools, allowBitmap, capsBpsCsv) => allocationsCsv
-4) proveWithNode(vault=safe, nonce=onchainNonce, deadline=0, allowBitmap, capsBpsCsv, allocationsCsv)
-5) If proveOutput.policyHash != onchain policyHash: STOP.
-6) buildExecuteWithProofTx(proofGateModule, safe, proof elements, publicInputs)
-7) sendAgentTx(to=proofGateModule, data=calldata)
+4) buildRouterCalls(allocationsBps, allowBitmap, safeAddress) => calls array
+5) proveWithNode(vault=safe, nonce=onchainNonce, deadline=0, allowBitmap, capsBpsCsv, allocationsCsv)
+6) If proveOutput.policyHash != onchain policyHash: STOP.
+7) buildExecuteWithProofTx(proofGateModule, safe, proof elements, publicInputs, calls)
+8) sendAgentTx(to=proofGateModule, data=calldata)
 
 Output must be structured per responseFormat.`;
 

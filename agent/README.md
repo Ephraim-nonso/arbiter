@@ -43,7 +43,7 @@ The npm scripts don’t force `--env-file=.env`. So you can either:
 - use a runner like `dotenvx` / `direnv`, or
 - run `tsx --env-file=.env ...` manually if you prefer.
 
-## Tests (recommended before Router integrations)
+## Tests
 
 ### Smoke (no chain write)
 
@@ -75,4 +75,4 @@ DRY_RUN=false npm run test:e2e  # broadcast (requires AGENT_PRIVATE_KEY)
 
 - The agent submits a normal EOA transaction to `ProofGateSafeModule.executeWithProof(...)`.
 - Safe Protocol Kit is included for Safe introspection / future Safe-tx flows (policy/agent enablement).
-- For now, Router calls are left empty in the tool (you can extend it to include protocol actions once Router integrations are ready).
+- Router calls are built based on allocations via the `buildRouterCalls` tool. Currently, these are placeholder calls that need to be extended with actual protocol-specific function calls (deposit, swap, etc.) for each protocol integration.

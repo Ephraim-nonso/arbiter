@@ -16,7 +16,7 @@ include "circomlib/circuits/bitify.circom";
 //  0: Ondo Finance
 //  1: AGNI Finance
 //  2: Stargate
-//  3: Mantle Rewards
+//  3: Pendle
 //  4: INIT Capital
 
 template PolicyCircuit(N) {

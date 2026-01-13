@@ -9,6 +9,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { mantleSepoliaTestnet } from "viem/chains";
+import type { RouterCall } from "./routerCalls.js";
 
 // Minimal ABI for ProofGateSafeModule.executeWithProof
 const proofGateAbi = [
@@ -55,6 +56,7 @@ export async function buildExecuteWithProofTx({
   proofB,
   proofC,
   publicInputs,
+  calls = [],
 }: {
   proofGateModule: string;
   safeAddress: string;
@@ -62,6 +64,7 @@ export async function buildExecuteWithProofTx({
   proofB: [[string, string], [string, string]];
   proofC: [string, string];
   publicInputs: string[];
+  calls?: RouterCall[];
 }) {
   // Match contracts/test/SafeProofGate.t.sol encoding:
   // proofBytes = abi.encode(uint256[2] a, uint256[2][2] b, uint256[2] c)
@@ -81,12 +84,19 @@ export async function buildExecuteWithProofTx({
     ]
   );
 
+  // Convert RouterCall[] to the format expected by the ABI
+  const routerCalls = calls.map((call) => ({
+    target: call.target,
+    value: call.value,
+    data: call.data,
+  }));
+
   const data = encodeFunctionData({
     abi: proofGateAbi,
     functionName: "executeWithProof",
     args: [
       asAddress(safeAddress),
-      [], // Router.Call[] (leave empty until adapters are ready)
+      routerCalls, // Router.Call[]
       proofBytes,
       parseU256Array(publicInputs),
     ],
@@ -102,7 +112,8 @@ export async function buildExecuteWithProofTx({
 export const buildExecuteWithProofTxMetadata = {
   name: "buildExecuteWithProofTx",
   description:
-    "Build a transaction that calls ProofGateSafeModule.executeWithProof(safe, calls[], proofBytes, publicInputs).",
+    "Build a transaction that calls ProofGateSafeModule.executeWithProof(safe, calls[], proofBytes, publicInputs). " +
+    "The calls parameter should be built using buildRouterCalls based on allocations.",
   schema: z.object({
     proofGateModule: z.string(),
     safeAddress: z.string(),
@@ -113,6 +124,16 @@ export const buildExecuteWithProofTxMetadata = {
     ]),
     proofC: z.tuple([z.string(), z.string()]),
     publicInputs: z.array(z.string()),
+    calls: z
+      .array(
+        z.object({
+          target: z.string(),
+          value: z.string().optional(),
+          data: z.string(),
+        })
+      )
+      .optional()
+      .describe("Router.Call[] array (optional, defaults to empty). Use buildRouterCalls to generate based on allocations."),
   }),
 };
 
