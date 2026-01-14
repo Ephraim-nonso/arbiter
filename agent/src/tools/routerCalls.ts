@@ -15,6 +15,14 @@ export const PROTOCOL_IDS = {
 } as const;
 
 /**
+ * Pendle Market address on Mantle mainnet.
+ * This is the simpler interface for Pendle swaps (swapSyForExactPt).
+ * Reference: https://mantlescan.xyz/token/0x7dc07C575A0c512422dCab82CE9Ed74dB58Be30C#code
+ */
+const PENDLE_MARKET_MAINNET =
+  "0x7dc07C575A0c512422dCab82CE9Ed74dB58Be30C" as Address;
+
+/**
  * Protocol contract addresses on Mantle (mainnet or Sepolia).
  * These must be registered in the Router via setTargetsProtocolId.
  *
@@ -40,8 +48,7 @@ function getProtocolAddresses(): Record<number, Address | null> {
       "0x319B69888b0d11cEC22caA5034e25FfFBDc88421" as Address, // AGNI_SWAP_ROUTER
     [PROTOCOL_IDS.STARGATE]:
       "0x0000000000000000000000000000000000000000" as Address, // TODO: Add Stargate address
-    [PROTOCOL_IDS.MANTLE_REWARDS]:
-      "0x888888888889758F76e7103c6CbF23ABbF58F946" as Address, // PENDLE_ROUTER
+    [PROTOCOL_IDS.MANTLE_REWARDS]: PENDLE_MARKET_MAINNET, // PENDLE_MARKET (simpler interface)
     [PROTOCOL_IDS.INIT]:
       "0x0000000000000000000000000000000000000000" as Address, // TODO: Add INIT address
   };
@@ -124,22 +131,62 @@ export async function buildRouterCalls({
       continue;
     }
 
-    // Build a placeholder call
-    // TODO: Replace with actual protocol-specific function calls
-    // Examples:
-    // - Ondo: deposit(uint256 amount)
-    // - Agni: swapExactInputSingle(...)
-    // - Pendle: swapExactTokenForPt(...)
-    // - Stargate: addLiquidity(...)
-    // - INIT: deposit(...)
+    // Build protocol-specific function calls
+    let data: `0x${string}`;
+    let value = 0n;
 
-    // For now, create a no-op call (0x00 data) that will fail gracefully
-    // In production, this should encode actual protocol function calls
-    const data = "0x00" as `0x${string}`;
+    if (i === PROTOCOL_IDS.MANTLE_REWARDS) {
+      // Pendle Market: swapSyForExactPt(address receiver, uint256 exactPtOut, bytes calldata data)
+      // Function signature: swapSyForExactPt(address,uint256,bytes)
+      // Reference: https://mantlescan.xyz/token/0x7dc07C575A0c512422dCab82CE9Ed74dB58Be30C#code
+      //
+      // NOTE: This assumes the Safe already has SY tokens. In production, you may need to:
+      // 1. First swap USDC -> SY using Pendle Router or another DEX
+      // 2. Then call swapSyForExactPt to get PT tokens
+      //
+      // For now, we calculate exactPtOut based on allocation percentage.
+      // If totalAmount is provided, calculate the PT amount; otherwise use a placeholder.
+      const exactPtOut = totalAmount
+        ? (totalAmount * BigInt(allocationBps)) / 10000n
+        : BigInt(allocationBps) * 10n ** 15n; // Placeholder: allocationBps * 0.001 PT (18 decimals)
+
+      data = encodeFunctionData({
+        abi: [
+          {
+            type: "function",
+            name: "swapSyForExactPt",
+            inputs: [
+              { name: "receiver", type: "address" },
+              { name: "exactPtOut", type: "uint256" },
+              { name: "data", type: "bytes" },
+            ],
+            outputs: [],
+            stateMutability: "nonpayable",
+          },
+        ],
+        functionName: "swapSyForExactPt",
+        args: [
+          safeAddress as Address, // receiver: PT tokens go to the Safe
+          exactPtOut, // exactPtOut: exact amount of PT we want
+          "0x" as `0x${string}`, // data: empty bytes for no callback
+        ],
+      });
+    } else {
+      // TODO: Replace with actual protocol-specific function calls for other protocols
+      // Examples:
+      // - Ondo: deposit(uint256 amount)
+      // - Agni: swapExactInputSingle(...)
+      // - Stargate: addLiquidity(...)
+      // - INIT: deposit(...)
+
+      // For now, create a no-op call (0x00 data) that will fail gracefully
+      // In production, this should encode actual protocol function calls
+      data = "0x00" as `0x${string}`;
+    }
 
     calls.push({
       target,
-      value: 0n,
+      value,
       data,
     });
   }
@@ -151,7 +198,8 @@ export const buildRouterCallsMetadata = {
   name: "buildRouterCalls",
   description:
     "Build Router.Call[] array based on allocations. Each protocol with non-zero allocation gets a call. " +
-    "NOTE: Currently creates placeholder calls. Extend with actual protocol function calls (deposit, swap, etc.).",
+    "Pendle (MANTLE_REWARDS) is implemented using swapSyForExactPt. Other protocols use placeholder calls " +
+    "that should be extended with actual protocol function calls (deposit, swap, etc.).",
   schema: z.object({
     allocationsBps: z
       .array(z.number().int().min(0).max(10000))
